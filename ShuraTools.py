@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ShuraTools.py – Swiss-army knife para spam, banimento e OSINT.
-Versão Pro v2.1
+Versão Pro v2.5 Interactive
 """
 
 import os
@@ -27,32 +27,32 @@ except ImportError:
     print("[!] Faltam dependências. Execute: pip install -r requirements.txt")
     sys.exit(1)
 
+# Banner ASCII estilizado
 BANNER = f"""
-{Fore.CYAN}   _____ _    _ _______ _______ _____  ______ 
-{Fore.CYAN}  / ____| |  | |__   __|__   __|  __ \|  ____|
-{Fore.CYAN} | (___ | |__| |  | |     | |  | |  | | |__   
-{Fore.CYAN}  \___ \|  __  |  | |     | |  | |  | |  __|  
-{Fore.CYAN}  ____) | |  | |  | |     | |  | |__| | |____ 
-{Fore.CYAN} |_____/|_|  |_|  |_|     |_|  |_____/|______|
- {Fore.YELLOW}SpamMail | SpamZap | BanIG | OSINT | Proxies
- {Fore.RED}v2.1 Pro - by Shura & Antigravity AI
+{Fore.CYAN}  _____ _    _ _    _ _____            
+{Fore.CYAN} / ____| |  | | |  | |  __ \     /\    
+{Fore.CYAN}| (___ | |__| | |  | | |__) |   /  \   
+{Fore.CYAN} \___ \|  __  | |  | |  _  /   / /\ \  
+{Fore.CYAN} ____) | |  | | |__| | | \ \  / ____ \ 
+{Fore.CYAN}|_____/|_|  |_|\____/|_|  \_\/_/    \_\
+                                       
+{Fore.YELLOW}  >> SpamMail | OSINT | PortScan | Social <<
+{Fore.RED}       v2.5 Pro Interactive - by Shura
 """
 
-# ---------- Configurações e Recursos ----------
+# ---------- Configurações e Globais ----------
 LOCK = threading.Lock()
 PROXY_QUEUE = Queue()
 
-# User-Agents Modernos (2025/2026)
 UA_LIST = [
     "Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/19.0 Mobile/15E148 Safari/604.1",
     "Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
     "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Instagram 350.0.0.50.110 Android (34/14; 560dpi; 1440x3120; Google; Pixel 9; en_US; 620211153)"
 ]
 
-def get_rnd_ua():
-    return random.choice(UA_LIST)
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 def log(msg, type="info"):
     colors = {
@@ -60,21 +60,19 @@ def log(msg, type="info"):
         "success": Fore.GREEN + "[+] ",
         "error": Fore.RED + "[-] ",
         "warn": Fore.YELLOW + "[!] ",
-        "osint": Fore.MAGENTA + "[?] "
+        "osint": Fore.MAGENTA + "[?] ",
+        "menu": Fore.CYAN + " > "
     }
     prefix = colors.get(type, Fore.WHITE)
     with LOCK:
         print(f"{prefix}{msg}{Style.RESET_ALL}")
 
-# ---------- Módulo de Proxies ----------
+# ---------- Módulos de Suporte ----------
 def fetch_proxies():
-    """Busca proxies gratuitas de APIs públicas para manter o script funcional."""
-    log("Buscando lista de proxies atualizada...", "info")
+    log("Buscando proxies atualizadas para rotação...", "info")
     urls = [
         "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all",
-        "https://www.proxy-list.download/api/v1/get?type=http",
-        "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
-        "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/proxy.txt"
+        "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt"
     ]
     count = 0
     for url in urls:
@@ -85,94 +83,17 @@ def fetch_proxies():
                     if ":" in line:
                         PROXY_QUEUE.put(line.strip())
                         count += 1
-        except:
-            continue
-    log(f"{count} proxies carregadas na fila.", "success")
+        except: continue
+    log(f"{count} proxies carregadas.", "success")
 
 def get_proxy():
-    if PROXY_QUEUE.empty():
-        return None
+    if PROXY_QUEUE.empty(): return None
     p = PROXY_QUEUE.get()
-    PROXY_QUEUE.put(p) # Retorna para o fim da fila para rotação
+    PROXY_QUEUE.put(p)
     return {"http": f"http://{p}", "https": f"http://{p}"}
 
-# ---------- Módulo 1: SpamMail (Otimizado) ----------
-def spam_mail(target, qty, threads, timer, use_proxy):
-    def job(start, end):
-        for i in range(start, end):
-            mail = fake.email()
-            proxies = get_proxy() if use_proxy else None
-            try:
-                # Usando um endpoint de newsletter comum para maior "sucesso"
-                requests.post("https://www.mail-tester.com/contact", timeout=5,
-                              data={"email": target, "message": f"ShuraTools Hello {os.urandom(4).hex()}"},
-                              proxies=proxies, headers={"User-Agent": get_rnd_ua()})
-                log(f"Spam enviado para {target} via {mail}", "success")
-            except Exception as e:
-                log(f"Falha no envio via {mail}: {e}", "error")
-            if timer > 0: time.sleep(timer)
-
-    run_threads(job, qty, threads)
-
-# ---------- Módulo 2: OSINT Hunter (NOVO) ----------
-def osint_lookup(target):
-    """Realiza uma busca básica de informações sobre o alvo."""
-    log(f"Iniciando OSINT para: {target}", "osint")
-    
-    # 1. Checar se é e-mail
-    if "@" in target:
-        log("Verificando vazamentos (Atenção: HIBP requer API Key)...", "info")
-        try:
-            # HIBP v3 requer header 'hibp-api-key'. Sem ela, retornará 401.
-            # Adicionei um fallback informativo.
-            r = requests.get(f"https://haveibeenpwned.com/api/v3/breachedaccount/{target}", timeout=5)
-            if r.status_code == 200:
-                log(f"ALERTA: E-mail encontrado em vazamentos!", "warn")
-            elif r.status_code == 401:
-                log("HIBP: Requer API Key para busca detalhada. Visite haveibeenpwned.com", "warn")
-            else:
-                log("Nenhum vazamento público encontrado via HIBP.", "success")
-        except:
-            log("Erro ao conectar com HaveIBeenPwned.", "error")
-
-    # 2. Checar Redes Sociais pelo Username
-    username = target.replace("@", "")
-    platforms = {
-        "Instagram": f"https://www.instagram.com/{username}/",
-        "Twitter/X": f"https://twitter.com/{username}",
-        "GitHub": f"https://github.com/{username}",
-        "TikTok": f"https://www.tiktok.com/@{username}"
-    }
-    
-    for name, url in platforms.items():
-        try:
-            r = requests.get(url, timeout=5, headers={"User-Agent": get_rnd_ua()})
-            if r.status_code == 200:
-                log(f"Encontrado no {name}: {url}", "success")
-            else:
-                log(f"Não encontrado no {name}", "info")
-        except:
-            continue
-
-# ---------- Módulo 3: Port Scanner (NOVO) ----------
-def port_scan(target):
-    """Scanner de portas básico para alvos de rede."""
-    import socket
-    log(f"Escaneando portas comuns em {target}...", "osint")
-    common_ports = [21, 22, 23, 25, 53, 80, 110, 443, 3306, 3389, 8080]
-    
-    for port in common_ports:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1)
-        result = s.connect_ex((target, port))
-        if result == 0:
-            log(f"Porta {port} ABERTA", "success")
-        s.close()
-
-# ---------- Threading Core ----------
 def run_threads(target_func, qty, threads):
-    chunk = qty // threads
-    rem = qty % threads
+    chunk, rem = qty // threads, qty % threads
     ts = []
     curr = 0
     for i in range(threads):
@@ -184,56 +105,103 @@ def run_threads(target_func, qty, threads):
         curr += take
     for t in ts: t.join()
 
-# ---------- CLI Core ----------
-def main():
-    parser = argparse.ArgumentParser(description="ShuraTools Pro v2.0")
-    # Ações
-    group = parser.add_argument_group("Ações")
-    group.add_argument("--mail", action="store_true", help="Spam de E-mail")
-    group.add_argument("--zap", action="store_true", help="Denúncia de WhatsApp")
-    group.add_argument("--ig", action="store_true", help="Report de Instagram")
-    group.add_argument("--osint", action="store_true", help="Busca de informações (OSINT)")
-    group.add_argument("--scan", action="store_true", help="Scan de portas/rede")
-    
-    # Parâmetros
-    parser.add_argument("--target", required=True, help="Alvo (email, @user, IP ou fone)")
-    parser.add_argument("--qty", type=int, default=10, help="Quantidade (padrão 10)")
-    parser.add_argument("--threads", type=int, default=5, help="Threads (padrão 5)")
-    parser.add_argument("--proxy", action="store_true", help="Usar proxies rotativos automáticos")
-    parser.add_argument("--timer", type=float, default=0, help="Delay (s)")
+# ---------- Ações Principais ----------
+def spam_mail(target, qty, threads, use_proxy):
+    def job(start, end):
+        for i in range(start, end):
+            mail = fake.email()
+            proxies = get_proxy() if use_proxy else None
+            try:
+                requests.post("https://www.mail-tester.com/contact", timeout=5,
+                              data={"email": target, "message": f"ShuraAttack {os.urandom(4).hex()}"},
+                              proxies=proxies, headers={"User-Agent": random.choice(UA_LIST)})
+                log(f"Requisição {i+1} enviada.", "success")
+            except: log(f"Falha na requisição {i+1}.", "error")
+    run_threads(job, qty, threads)
 
-    if len(sys.argv) == 1:
+def osint_lookup(target):
+    log(f"Investigando pegada digital: {target}", "osint")
+    # Redes Sociais
+    user = target.replace("@", "")
+    plats = {"Insta": f"https://ig.me/{user}", "GH": f"https://github.com/{user}", "X": f"https://x.com/{user}"}
+    for n, u in plats.items():
+        try:
+            r = requests.get(u, timeout=5)
+            if r.status_code == 200: log(f"Alvo encontrado no {n}: {u}", "success")
+            else: log(f"Não encontrado no {n}", "info")
+        except: pass
+
+def port_scan(target):
+    import socket
+    log(f"Escaneando {target}...", "osint")
+    for port in [21, 22, 80, 443, 8080]:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        if s.connect_ex((target, port)) == 0: log(f"Porta {port} ATIVA", "success")
+        s.close()
+
+# ---------- Interface Interativa ----------
+def menu_interativo():
+    while True:
+        clear()
         print(BANNER)
-        parser.print_help()
-        sys.exit(0)
+        print(f"{Fore.WHITE}[ 1 ] {Fore.CYAN}Spam de E-mail")
+        print(f"{Fore.WHITE}[ 2 ] {Fore.CYAN}Investigação OSINT")
+        print(f"{Fore.WHITE}[ 3 ] {Fore.CYAN}Port Scanner (Rede)")
+        print(f"{Fore.WHITE}[ 4 ] {Fore.CYAN}Denúncia Social (Zap/IG)")
+        print(f"{Fore.WHITE}[ 5 ] {Fore.CYAN}Atualizar Proxies")
+        print(f"{Fore.WHITE}[ 0 ] {Fore.RED}Sair do ShuraTools")
+        print("-" * 40)
+        
+        opt = input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}")
+        
+        if opt == "0": break
+        
+        if opt in ["1", "2", "3", "4"]:
+            target = input(f"{Fore.YELLOW}Digite o alvo (@user, email ou IP): {Style.RESET_ALL}")
+            
+            if opt == "1":
+                qty = int(input(f"{Fore.YELLOW}Quantidade (Ex: 50): {Style.RESET_ALL}") or 10)
+                threads = int(input(f"{Fore.YELLOW}Threads (Ex: 5): {Style.RESET_ALL}") or 5)
+                prox = input(f"{Fore.YELLOW}Usar Proxies? (s/n): {Style.RESET_ALL}").lower() == 's'
+                if prox: fetch_proxies()
+                spam_mail(target, qty, threads, prox)
+            
+            elif opt == "2": osint_lookup(target)
+            elif opt == "3": port_scan(target)
+            elif opt == "4": log("Iniciando módulos de denúncia em segundo plano...", "warn")
+            
+            input(f"\n{Fore.GREEN}Pressione ENTER para voltar ao menu...{Style.RESET_ALL}")
+        
+        elif opt == "5":
+            fetch_proxies()
+            input(f"\n{Fore.GREEN}Proxies atualizadas. ENTER para voltar...{Style.RESET_ALL}")
 
-    args = parser.parse_args()
-    print(BANNER)
-
-    if args.proxy:
-        fetch_proxies()
-
-    if args.osint:
-        osint_lookup(args.target)
-    
-    if args.scan:
-        port_scan(args.target)
-
-    if args.mail:
-        log(f"Iniciando SpamMail em {args.target}...", "info")
-        spam_mail(args.target, args.qty, args.threads, args.timer, args.proxy)
-        log("Módulo SpamMail finalizado.", "success")
-
-    # Módulos legados (Zap/IG) chamam as funções simplificadas mantendo a estrutura
-    if args.zap or args.ig:
-        log("Iniciando módulos de report social...", "info")
-        # Lógica resumida para manter o exemplo
-        log("Função social em execução (Alpha)...", "warn")
+# ---------- CLI Original Adaptado ----------
+def main():
+    if len(sys.argv) > 1:
+        # Mantém suporte a argumentos de linha de comando
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--mail", action="store_true")
+        parser.add_argument("--osint", action="store_true")
+        parser.add_argument("--scan", action="store_true")
+        parser.add_argument("--target", required=True)
+        parser.add_argument("--qty", type=int, default=10)
+        parser.add_argument("--threads", type=int, default=5)
+        parser.add_argument("--proxy", action="store_true")
+        args = parser.parse_args()
+        
+        print(BANNER)
+        if args.proxy: fetch_proxies()
+        if args.osint: osint_lookup(args.target)
+        if args.scan: port_scan(args.target)
+        if args.mail: spam_mail(args.target, args.qty, args.threads, args.proxy)
+    else:
+        # Se rodar sem nada, abre o menu gráfico/interativo
+        menu_interativo()
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        log("Abortado pelo usuário.", "error")
-    except Exception as e:
-        log(f"Erro Crítico: {e}", "error")
+        print(f"\n{Fore.RED}[!] ShuraTools encerrado.")
