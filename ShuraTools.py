@@ -103,31 +103,39 @@ async def bomber_async(target, mode, qty, threads):
 # ========== MASS REPORT ==========
 async def mass_report_async(target, platform, qty, threads):
     log(f"{platform.upper()} Mass Report: {target}", "w")
+    log(f"AVISO: Mass Report pode não funcionar - APIs privadas!", "w")
     
+    # Nota: Estas APIs são privadas e podem estar bloqueadas
+    # O método mais efetivo é usar a interface web oficial
     if platform == "ig":
-        url = "https://i.instagram.com/api/v1/users/web_report/"
-        data = {"username": target, "source_name": "profile", "reason_id": "1"}
+        # Instagram não tem API pública de report
+        # Alternativa: usar selenium para automatizar a interface web
+        log("Instagram Report requer automação web (Selenium)", "e")
+        log("Use a interface oficial: instagram.com/[username] → ... → Report", "i")
+        return
     else:
-        url = "https://v.whatsapp.net/v2/report"
-        data = {"phone": target, "reason": "spam"}
+        # WhatsApp também não tem API pública
+        log("WhatsApp Report requer app oficial", "e")
+        log("Use o app: Abra o chat → Mais opções → Denunciar", "i")
+        return
     
-    sem = asyncio.Semaphore(threads)
-    
-    async def report(idx):
-        async with sem:
-            try:
-                headers = {"User-Agent": random.choice(UA_LIST)}
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(url, data=data, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as res:
-                        if res.status < 400:
-                            log(f"Report {idx+1}/{qty} → OK", "s")
-                        else:
-                            log(f"Report {idx+1}/{qty} → {res.status}", "w")
-            except:
-                log(f"Report {idx+1}/{qty} → Timeout", "e")
-    
-    tasks = [report(i) for i in range(qty)]
-    await asyncio.gather(*tasks)
+    # Código comentado pois as APIs não funcionam mais:
+    # sem = asyncio.Semaphore(threads)
+    # async def report(idx):
+    #     async with sem:
+    #         try:
+    #             headers = {"User-Agent": random.choice(UA_LIST)}
+    #             async with aiohttp.ClientSession() as session:
+    #                 async with session.post(url, data=data, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as res:
+    #                     if res.status < 400:
+    #                         log(f"Report {idx+1}/{qty} → OK", "s")
+    #                     else:
+    #                         log(f"Report {idx+1}/{qty} → {res.status}", "w")
+    #         except:
+    #             log(f"Report {idx+1}/{qty} → Timeout", "e")
+    # tasks = [report(i) for i in range(qty)]
+    # await asyncio.gather(*tasks)
+
 
 # ========== OSINT CORRIGIDO (SEM FALSOS POSITIVOS) ==========
 async def osint_deep_async(target):
