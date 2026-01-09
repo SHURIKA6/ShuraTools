@@ -1,16 +1,19 @@
-# ShuraTools Pro v2.1 🛠️
+# ShuraTools v5.0 Ultimate Bomber �️🔥
 
-O **ShuraTools** evoluiu. De um simples script de spam, agora ele é uma ferramenta completa de **Pentest, OSINT e Automação de Carga**. Desenvolvido para entusiastas de segurança e administradores de sistemas.
+O **ShuraTools** atingiu seu ápice. De um simples script, agora ele é um arsenal completo de **Spam, OSINT e Pentest**, inspirado em ferramentas clássicas de automação e bombardeio de requisições. Desenvolvido para testes de estresse, auditoria de segurança e entusiastas.
 
 ---
 
-## ✨ O que há de novo na v2.0 Pro?
+## 💎 O Arsenal (O que há de novo na v5.0?)
 
-*   **🔍 OSINT Hunter**: Rastreie usuários em +4 plataformas e verifique vazamentos de e-mail (API Breach Check).
-*   **📡 Port Scanner**: Verifique a segurança da sua rede escaneando portas abertas em IPs ou domínios.
-*   **🌐 Auto-Proxy**: Busca automática de proxies HTTP/HTTPS em fontes públicas (não precisa mais de lista manual!).
-*   **🎨 Terminal Moderno**: Interface colorida para facilitar a leitura de logs em tempo real.
-*   **🚀 Multi-Threading Otimizado**: Distribuição inteligente de carga para máxima eficiência.
+*   **� SMS & Call Bomber**: Inunde o alvo com códigos OTP e **chamadas de voz** reais de serviços como iFood, Uber, Tinder e QuintoAndar.
+*   **📧 Email Bomber (Dual Mode)**:
+    *   *Modo Mensagem*: Envie alertas e mensagens customizadas através de canais de suporte.
+    *   *Modo Newsletter*: Cadastre o alvo em dezenas de listas de e-mail "chatas" que enviam notícias e confirmações diariamente.
+*   **🚫 Social Ban (Mass Report)**: Módulo de denúncia automática em massa para contas de Instagram e WhatsApp.
+*   **🔍 OSINT Hunter Pro**: Rastreie a pegada digital de qualquer usuário em diversas plataformas sociais instantaneamente.
+*   **📡 Port Scanner**: Realize varreduras de portas em domínios ou IPs para encontrar serviços expostos.
+*   **🎮 Interface Interativa**: Esqueça comandos longos. O script possui um menu visual e amigável para selecionar seu arsenal.
 
 ---
 
@@ -23,7 +26,7 @@ git clone https://github.com/SHURIKA6/ShuraTools.git
 # Entre na pasta
 cd ShuraTools
 
-# Instale as dependências (Colorama, Requests, Faker)
+# Instale as dependências
 pip install -r requirements.txt
 ```
 
@@ -31,53 +34,17 @@ pip install -r requirements.txt
 
 ## 🛠️ Como Usar
 
-### 1. Investigação (OSINT)
-Descubra a presença digital de um alvo através do username ou verifique vulnerabilidades em um e-mail.
+Para abrir o **Arsenal Interativo**, basta rodar:
 ```bash
-python ShuraTools.py --osint --target @usuario_alvo
+python ShuraTools.py
 ```
-
-### 2. Scanner de Rede (PortScan)
-Veja quais serviços estão rodando em um servidor.
-```bash
-python ShuraTools.py --scan --target 182.23.44.1
-```
-
-### 3. Teste de Carga / Spam (Mail)
-Envie fluxos de requisições com rotação de identidade e proxy.
-```bash
-python ShuraTools.py --mail --target vitima@gmail.com --qty 100 --threads 20 --proxy
-```
-
-### 4. Denúncia Automática (Social)
-Módulos de report para contenção de abusos em plataformas sociais.
-```bash
-python ShuraTools.py --zap --target 5511999999999 --qty 50
-python ShuraTools.py --ig --target @usuario_alvo
-```
-
----
-
-## ⚙️ Argumentos e Opções
-
-| Flag | Descrição |
-| :--- | :--- |
-| `--mail` | Ativa o módulo de Spam de E-mail. |
-| `--osint` | Ativa o módulo de investigação de pegada digital. |
-| `--scan` | Executa o port scanner no alvo. |
-| `--zap` | Módulo de denúncia de WhatsApp. |
-| `--ig` | Módulo de report de Instagram. |
-| `--target` | Define o alvo (email, fone, @user ou IP). |
-| `--qty` | Quantidade total de requisições/instâncias. |
-| `--threads` | Número de processos simultâneos. |
-| `--proxy` | Busca e usa proxies rotativos automaticamente. |
-| `--timer` | Delay entre as ações (em segundos). |
+O menu guiará você por todas as ferramentas. Basta digitar o número da opção desejada e seguir as instruções na tela.
 
 ---
 
 ## ⚠️ Aviso Legal (Disclaimer)
 
-Esta ferramenta foi criada estritamente para fins **educacionais e testes autorizados**. O autor não se responsabiliza pelo uso indevido para fins ilícitos, assédio ou qualquer atividade que viole os termos de serviço das plataformas mencionadas. Use com ética e responsabilidade.
+Esta ferramenta foi criada estritamente para fins **educacionais e testes autorizados**. O autor não se responsabiliza pelo uso indevido para fins de assédio, spam não autorizado ou qualquer atividade que viole leis locais ou termos de serviço de terceiros. Use com ética e responsabilidade.
 
 ---
 **Desenvolvido por Shura** 🛡️
